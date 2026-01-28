@@ -1,0 +1,367 @@
+import React from 'react';
+
+// Mock data - Food Product/Recipe based
+const mockData = {
+  // Header Information
+  recordId: "RECIPE-2024-0847",
+  status: "Published",
+  createdDate: "2024-01-15",
+  lastModified: "2024-01-27",
+  priority: "Featured",
+  
+  // Recipe Basic Information
+  recipeName: "Truffle Mushroom Risotto",
+  cuisine: "Italian",
+  dishType: "Main Course",
+  difficulty: "Intermediate",
+  chefName: "Marco Bianchi",
+  restaurantName: "La Cucina Moderna",
+  servings: 4,
+  portionSize: "350g",
+  
+  // Location Information
+  originCity: "Milan",
+  originRegion: "Lombardy",
+  originCountry: "Italy",
+  availableAt: "La Cucina Moderna, Downtown Location",
+  deliveryZone: "City-wide",
+  
+  // Pricing & Cost Data
+  costPerServing: 18.50,
+  ingredientCost: 12.25,
+  laborCost: 4.50,
+  overheadCost: 1.75,
+  profitMargin: 0.34,
+  wholesalePrice: 14.80,
+  
+  // Important Dates
+  recipeCreated: "2023-08-12",
+  firstServed: "2023-09-01",
+  lastUpdated: "2024-01-27",
+  seasonalAvailableFrom: "2024-09-01",
+  seasonalAvailableTo: "2024-03-31",
+  nextMenuReview: "2024-04-15",
+  
+  // Performance Metrics
+  customerRating: 4.7,
+  timesOrdered: 1847,
+  prepTimeMinutes: 45,
+  cookTimeMinutes: 35,
+  returnRate: 2.3,
+  repeatOrderRate: 68,
+  
+  // Additional Metrics
+  monthsOnMenu: 16.5,
+  popularityRank: 3,
+  profitabilityScore: 87,
+  consistencyRating: 92,
+  platePresentationScore: 95,
+  
+  // Allergens & Dietary
+  allergens: "Dairy, Gluten, Sulfites",
+  dietaryTags: "Vegetarian",
+  glutenFree: "No",
+  vegan: "No",
+  
+  // Chef & Kitchen Info
+  headChef: "Chef Marco Bianchi",
+  sousChef: "Sofia Rossi",
+  stationAssigned: "Pasta & Risotto Station",
+  kitchenStaff: 6,
+  
+  // Service & Availability
+  serviceType: "Dine-in & Takeout",
+  mealPeriods: "Lunch, Dinner",
+  peakOrderTimes: "7:00 PM - 9:00 PM",
+  avgWaitTime: 25,
+  
+  // Supplier & Ingredients
+  primarySupplier: "Gourmet Foods Co.",
+  truffleSource: "Alba, Piedmont",
+  mushroomVariety: "Porcini, Cremini",
+  
+  // Additional Info
+  qualityCertification: "Michelin Recommended",
+  specialEquipment: "Risotto Pan, Truffle Slicer",
+  storageTemp: "36-40°F",
+  shelfLife: "Best served fresh",
+  reheatingInstructions: "Low heat, add stock if needed",
+  
+  // Menu & Marketing
+  menuCategory: "Signature Dishes",
+  promotionType: "Chef's Special",
+  photoShootDate: "2023-08-20",
+  socialMediaPosts: 47,
+  
+  // Notes & Comments
+  chefNotes: "This risotto requires constant attention and gradual stock addition. The key is achieving a creamy consistency while maintaining the rice's slight firmness (al dente). Fresh truffle should be shaved tableside for maximum aroma and presentation impact. Best paired with a dry white wine.",
+  kitchenNotes: "Prep mise en place 30 minutes before service. Keep stock warm throughout service. Arborio rice must be toasted properly before adding liquid. Reserve pasta water for adjusting consistency. Garnish with fresh parsley and parmesan just before serving.",
+  customerFeedback: "Consistently praised for rich, earthy flavors and luxurious texture. Customers appreciate the tableside truffle shaving presentation. Some feedback suggests offering a half-portion option for lighter appetites. Pairs excellently with our house Pinot Grigio.",
+};
+
+const DataViewPage = () => {
+  // Helper function to format currency
+  const formatCurrency = (value) => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+    }).format(value);
+  };
+
+  // Helper function to format dates
+  const formatDate = (date) => {
+    if (!date) return 'N/A';
+    return new Date(date).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+    });
+  };
+
+  // Data field component for consistent styling
+  const DataField = ({ label, value, fullWidth = false }) => (
+    <div className={`${fullWidth ? 'col-span-2' : ''}`}>
+      <dt className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">{label}</dt>
+      <dd className="text-base text-gray-900 font-medium">{value ?? <span className="text-gray-400 italic">N/A</span>}</dd>
+    </div>
+  );
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 py-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        {/* Header */}
+        <div className="bg-gradient-to-r from-indigo-600 to-blue-500 shadow-lg rounded-xl mb-8 p-8 text-white">
+          <div className="flex justify-between items-start">
+            <div>
+              <h1 className="text-4xl font-bold">
+                {mockData.recipeName}
+              </h1>
+              <p className="mt-2 text-indigo-100 flex items-center gap-2">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 20l4-16m2 16l4-16M6 9h14M4 15h14" />
+                </svg>
+                Recipe ID: {mockData.recordId}
+              </p>
+            </div>
+            <span className="inline-flex items-center px-5 py-2.5 rounded-full text-sm font-semibold bg-green-400 text-green-900 shadow-md">
+              ✓ {mockData.status}
+            </span>
+          </div>
+          <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="bg-white/10 backdrop-blur-sm rounded-lg p-3">
+              <span className="text-indigo-200 text-xs uppercase tracking-wide">Created</span>
+              <div className="font-semibold mt-1">{formatDate(mockData.createdDate)}</div>
+            </div>
+            <div className="bg-white/10 backdrop-blur-sm rounded-lg p-3">
+              <span className="text-indigo-200 text-xs uppercase tracking-wide">Last Modified</span>
+              <div className="font-semibold mt-1">{formatDate(mockData.lastModified)}</div>
+            </div>
+            <div className="bg-white/10 backdrop-blur-sm rounded-lg p-3">
+              <span className="text-indigo-200 text-xs uppercase tracking-wide">Status</span>
+              <div className="font-semibold mt-1 text-orange-300">{mockData.priority}</div>
+            </div>
+          </div>
+        </div>
+
+        {/* Main Content Grid */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          
+          {/* Recipe Basic Information */}
+          <div className="bg-white shadow-md hover:shadow-xl transition-shadow duration-300 rounded-xl p-6 border-l-4 border-indigo-500">
+            <h2 className="text-xl font-bold text-gray-800 mb-4 pb-3 border-b-2 border-indigo-100">
+              Recipe Information
+            </h2>
+            <dl className="grid grid-cols-2 gap-4">
+              <DataField label="Recipe Name" value={mockData.recipeName} fullWidth />
+              <DataField label="Cuisine" value={mockData.cuisine} />
+              <DataField label="Dish Type" value={mockData.dishType} />
+              <DataField label="Difficulty" value={mockData.difficulty} />
+              <DataField label="Chef Name" value={mockData.chefName} />
+              <DataField label="Restaurant" value={mockData.restaurantName} fullWidth />
+              <DataField label="Servings" value={mockData.servings} />
+              <DataField label="Portion Size" value={mockData.portionSize} />
+            </dl>
+          </div>
+
+          {/* Location Information */}
+          <div className="bg-white shadow-md hover:shadow-xl transition-shadow duration-300 rounded-xl p-6 border-l-4 border-blue-500">
+            <h2 className="text-xl font-bold text-gray-800 mb-4 pb-3 border-b-2 border-blue-100">
+              Origin & Availability
+            </h2>
+            <dl className="grid grid-cols-2 gap-4">
+              <DataField label="Origin City" value={mockData.originCity} />
+              <DataField label="Origin Region" value={mockData.originRegion} />
+              <DataField label="Origin Country" value={mockData.originCountry} />
+              <DataField label="Available At" value={mockData.availableAt} fullWidth />
+              <DataField label="Delivery Zone" value={mockData.deliveryZone} fullWidth />
+            </dl>
+          </div>
+
+          {/* Pricing Information */}
+          <div className="bg-white shadow-md hover:shadow-xl transition-shadow duration-300 rounded-xl p-6 border-l-4 border-green-500">
+            <h2 className="text-xl font-bold text-gray-800 mb-4 pb-3 border-b-2 border-green-100">
+              Pricing & Costs
+            </h2>
+            <dl className="grid grid-cols-2 gap-4">
+              <DataField label="Price Per Serving" value={formatCurrency(mockData.costPerServing)} />
+              <DataField label="Ingredient Cost" value={formatCurrency(mockData.ingredientCost)} />
+              <DataField label="Labor Cost" value={formatCurrency(mockData.laborCost)} />
+              <DataField label="Overhead Cost" value={formatCurrency(mockData.overheadCost)} />
+              <DataField label="Profit Margin" value={`${(mockData.profitMargin * 100).toFixed(1)}%`} />
+              <DataField label="Wholesale Price" value={formatCurrency(mockData.wholesalePrice)} />
+            </dl>
+          </div>
+
+          {/* Recipe Dates */}
+          <div className="bg-white shadow-md hover:shadow-xl transition-shadow duration-300 rounded-xl p-6 border-l-4 border-purple-500">
+            <h2 className="text-xl font-bold text-gray-800 mb-4 pb-3 border-b-2 border-purple-100">
+              Important Dates
+            </h2>
+            <dl className="grid grid-cols-2 gap-4">
+              <DataField label="Recipe Created" value={formatDate(mockData.recipeCreated)} />
+              <DataField label="First Served" value={formatDate(mockData.firstServed)} />
+              <DataField label="Last Updated" value={formatDate(mockData.lastUpdated)} />
+              <DataField label="Next Menu Review" value={formatDate(mockData.nextMenuReview)} />
+              <DataField label="Seasonal From" value={formatDate(mockData.seasonalAvailableFrom)} />
+              <DataField label="Seasonal To" value={formatDate(mockData.seasonalAvailableTo)} />
+            </dl>
+          </div>
+
+          {/* Performance Metrics */}
+          <div className="bg-white shadow-md hover:shadow-xl transition-shadow duration-300 rounded-xl p-6 border-l-4 border-orange-500">
+            <h2 className="text-xl font-bold text-gray-800 mb-4 pb-3 border-b-2 border-orange-100">
+              Performance Metrics
+            </h2>
+            <dl className="grid grid-cols-2 gap-4">
+              <DataField label="Customer Rating" value={`${mockData.customerRating}/5.0`} />
+              <DataField label="Times Ordered" value={mockData.timesOrdered} />
+              <DataField label="Prep Time" value={`${mockData.prepTimeMinutes} min`} />
+              <DataField label="Cook Time" value={`${mockData.cookTimeMinutes} min`} />
+              <DataField label="Return Rate" value={`${mockData.returnRate}%`} />
+              <DataField label="Repeat Order Rate" value={`${mockData.repeatOrderRate}%`} />
+              <DataField label="Popularity Rank" value={`#${mockData.popularityRank}`} />
+              <DataField label="Profitability Score" value={mockData.profitabilityScore} />
+            </dl>
+          </div>
+
+          {/* Additional Metrics */}
+          <div className="bg-white shadow-md hover:shadow-xl transition-shadow duration-300 rounded-xl p-6 border-l-4 border-cyan-500">
+            <h2 className="text-xl font-bold text-gray-800 mb-4 pb-3 border-b-2 border-cyan-100">
+              Quality Metrics
+            </h2>
+            <dl className="grid grid-cols-2 gap-4">
+              <DataField label="Months on Menu" value={mockData.monthsOnMenu} />
+              <DataField label="Consistency Rating" value={`${mockData.consistencyRating}%`} />
+              <DataField label="Presentation Score" value={mockData.platePresentationScore} />
+              <DataField label="Profitability Score" value={mockData.profitabilityScore} />
+            </dl>
+          </div>
+
+          {/* Allergens & Dietary */}
+          <div className="bg-white shadow-md hover:shadow-xl transition-shadow duration-300 rounded-xl p-6 border-l-4 border-pink-500">
+            <h2 className="text-xl font-bold text-gray-800 mb-4 pb-3 border-b-2 border-pink-100">
+              Allergens & Dietary Info
+            </h2>
+            <dl className="grid grid-cols-2 gap-4">
+              <DataField label="Allergens" value={mockData.allergens} fullWidth />
+              <DataField label="Dietary Tags" value={mockData.dietaryTags} />
+              <DataField label="Gluten Free" value={mockData.glutenFree} />
+              <DataField label="Vegan" value={mockData.vegan} />
+            </dl>
+          </div>
+
+          {/* Chef & Kitchen */}
+          <div className="bg-white shadow-md hover:shadow-xl transition-shadow duration-300 rounded-xl p-6 border-l-4 border-teal-500">
+            <h2 className="text-xl font-bold text-gray-800 mb-4 pb-3 border-b-2 border-teal-100">
+              Kitchen & Staff
+            </h2>
+            <dl className="grid grid-cols-2 gap-4">
+              <DataField label="Head Chef" value={mockData.headChef} />
+              <DataField label="Sous Chef" value={mockData.sousChef} />
+              <DataField label="Station" value={mockData.stationAssigned} fullWidth />
+              <DataField label="Kitchen Staff" value={mockData.kitchenStaff} />
+            </dl>
+          </div>
+
+          {/* Service Information */}
+          <div className="bg-white shadow-md hover:shadow-xl transition-shadow duration-300 rounded-xl p-6 border-l-4 border-amber-500">
+            <h2 className="text-xl font-bold text-gray-800 mb-4 pb-3 border-b-2 border-amber-100">
+              Service & Timing
+            </h2>
+            <dl className="grid grid-cols-2 gap-4">
+              <DataField label="Service Type" value={mockData.serviceType} fullWidth />
+              <DataField label="Meal Periods" value={mockData.mealPeriods} />
+              <DataField label="Peak Order Times" value={mockData.peakOrderTimes} fullWidth />
+              <DataField label="Avg Wait Time" value={`${mockData.avgWaitTime} min`} />
+            </dl>
+          </div>
+
+          {/* Supplier Information */}
+          <div className="bg-white shadow-md hover:shadow-xl transition-shadow duration-300 rounded-xl p-6 border-l-4 border-violet-500">
+            <h2 className="text-xl font-bold text-gray-800 mb-4 pb-3 border-b-2 border-violet-100">
+              Suppliers & Ingredients
+            </h2>
+            <dl className="grid grid-cols-2 gap-4">
+              <DataField label="Primary Supplier" value={mockData.primarySupplier} fullWidth />
+              <DataField label="Truffle Source" value={mockData.truffleSource} />
+              <DataField label="Mushroom Variety" value={mockData.mushroomVariety} />
+            </dl>
+          </div>
+
+          {/* Storage & Handling */}
+          <div className="bg-white shadow-md hover:shadow-xl transition-shadow duration-300 rounded-xl p-6 border-l-4 border-rose-500">
+            <h2 className="text-xl font-bold text-gray-800 mb-4 pb-3 border-b-2 border-rose-100">
+              Storage & Handling
+            </h2>
+            <dl className="grid grid-cols-2 gap-4">
+              <DataField label="Quality Certification" value={mockData.qualityCertification} fullWidth />
+              <DataField label="Special Equipment" value={mockData.specialEquipment} fullWidth />
+              <DataField label="Storage Temperature" value={mockData.storageTemp} />
+              <DataField label="Shelf Life" value={mockData.shelfLife} />
+              <DataField label="Reheating" value={mockData.reheatingInstructions} fullWidth />
+            </dl>
+          </div>
+
+          {/* Marketing Information */}
+          <div className="bg-white shadow-md hover:shadow-xl transition-shadow duration-300 rounded-xl p-6 border-l-4 border-red-500">
+            <h2 className="text-xl font-bold text-gray-800 mb-4 pb-3 border-b-2 border-red-100">
+              Menu & Marketing
+            </h2>
+            <dl className="grid grid-cols-2 gap-4">
+              <DataField label="Menu Category" value={mockData.menuCategory} />
+              <DataField label="Promotion Type" value={mockData.promotionType} />
+              <DataField label="Photo Shoot Date" value={formatDate(mockData.photoShootDate)} />
+              <DataField label="Social Media Posts" value={mockData.socialMediaPosts} />
+            </dl>
+          </div>
+        </div>
+
+        {/* Notes Sections - Full Width */}
+        <div className="mt-6 space-y-6">
+          <div className="bg-gradient-to-br from-indigo-50 to-blue-50 shadow-md rounded-xl p-6 border-l-4 border-indigo-500">
+            <h2 className="text-xl font-bold text-gray-800 mb-4 pb-3 border-b-2 border-indigo-200">
+              Chef Notes
+            </h2>
+            <p className="text-gray-700 leading-relaxed whitespace-pre-wrap">{mockData.chefNotes}</p>
+          </div>
+
+          <div className="bg-gradient-to-br from-purple-50 to-pink-50 shadow-md rounded-xl p-6 border-l-4 border-purple-500">
+            <h2 className="text-xl font-bold text-gray-800 mb-4 pb-3 border-b-2 border-purple-200">
+              Kitchen Notes
+            </h2>
+            <p className="text-gray-700 leading-relaxed whitespace-pre-wrap">{mockData.kitchenNotes}</p>
+          </div>
+
+          <div className="bg-gradient-to-br from-green-50 to-teal-50 shadow-md rounded-xl p-6 border-l-4 border-green-500">
+            <h2 className="text-xl font-bold text-gray-800 mb-4 pb-3 border-b-2 border-green-200">
+              Customer Feedback
+            </h2>
+            <p className="text-gray-700 leading-relaxed whitespace-pre-wrap">{mockData.customerFeedback}</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default DataViewPage;
