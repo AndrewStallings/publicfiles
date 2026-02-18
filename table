@@ -302,3 +302,20 @@ export default function DynamicTable<T extends Record<string, unknown>>({
     </div>
   );
 }
+
+function buildColumns<T extends Record<string, unknown>>(data: T[]): ColumnDef<T, unknown>[] {
+  if (!data.length) return [];
+
+  return (Object.keys(data[0]) as (keyof T & string)[]).map((key): ColumnDef<T, unknown> => ({
+    id: key,
+    header: key.charAt(0).toUpperCase() + key.slice(1),
+    accessorFn: (row: T) => row[key],
+    cell: (info) => {
+      const val = info.getValue();
+      if (key === "status") return <StatusBadge value={String(val)} />;
+      if (key === "score" && typeof val === "number") return <ScoreCell value={val} />;
+      if (key === "id") return <span className="font-mono text-xs text-stone-400 tabular-nums">#{String(val)}</span>;
+      return <span className="text-stone-700 text-sm">{String(val)}</span>;
+    },
+  }));
+}
