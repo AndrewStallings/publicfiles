@@ -1,0 +1,304 @@
+import { useState, useMemo } from "react";
+import {
+  useReactTable,
+  getCoreRowModel,
+  getSortedRowModel,
+  getFilteredRowModel,
+  getPaginationRowModel,
+  flexRender,
+  createColumnHelper,
+  SortingState,
+  ColumnDef,
+} from "@tanstack/react-table";
+
+// ─── Types ────────────────────────────────────────────────────────────────────
+
+type Status = "Active" | "Away" | "Offline";
+
+interface Person {
+  id: number;
+  name: string;
+  role: string;
+  status: Status;
+  score: number;
+  location: string;
+  joined: string;
+}
+
+// Generic — the table accepts any record type
+interface DynamicTableProps<T extends Record<string, unknown>> {
+  data?: T[];
+  /** Optional: manually provide TanStack ColumnDefs instead of auto-generating */
+  columns?: ColumnDef<T, unknown>[];
+}
+
+// ─── Sample data ──────────────────────────────────────────────────────────────
+
+const sampleData: Person[] = [
+  { id: 1,  name: "Alice Chen",     role: "Engineer",  status: "Active",  score: 98, location: "NYC",     joined: "2022-03-14" },
+  { id: 2,  name: "Bob Martinez",   role: "Designer",  status: "Away",    score: 74, location: "LA",      joined: "2021-11-02" },
+  { id: 3,  name: "Carol White",    role: "Manager",   status: "Active",  score: 88, location: "Chicago", joined: "2020-06-30" },
+  { id: 4,  name: "David Kim",      role: "Engineer",  status: "Offline", score: 61, location: "Austin",  joined: "2023-01-18" },
+  { id: 5,  name: "Eva Rossi",      role: "Designer",  status: "Active",  score: 95, location: "Miami",   joined: "2022-09-07" },
+  { id: 6,  name: "Frank Zhou",     role: "Engineer",  status: "Away",    score: 82, location: "Seattle", joined: "2021-05-21" },
+  { id: 7,  name: "Grace Park",     role: "Analyst",   status: "Active",  score: 77, location: "Boston",  joined: "2023-04-10" },
+  { id: 8,  name: "Henry Nguyen",   role: "Manager",   status: "Active",  score: 91, location: "Denver",  joined: "2020-12-01" },
+  { id: 9,  name: "Iris Kowalski",  role: "Designer",  status: "Offline", score: 55, location: "NYC",     joined: "2022-07-19" },
+  { id: 10, name: "James Okafor",   role: "Engineer",  status: "Active",  score: 87, location: "Austin",  joined: "2021-08-25" },
+  { id: 11, name: "Kai Tanaka",     role: "Analyst",   status: "Away",    score: 70, location: "SF",      joined: "2023-02-14" },
+  { id: 12, name: "Luna Ferreira",  role: "Engineer",  status: "Active",  score: 93, location: "Miami",   joined: "2022-11-30" },
+];
+
+// ─── Status badge ─────────────────────────────────────────────────────────────
+
+type StatusConfig = Record<Status, { dot: string; text: string; bg: string; ring: string }>;
+
+const statusConfig: StatusConfig = {
+  Active:  { dot: "bg-emerald-400", text: "text-emerald-700", bg: "bg-emerald-50",  ring: "ring-emerald-200" },
+  Away:    { dot: "bg-amber-400",   text: "text-amber-700",   bg: "bg-amber-50",    ring: "ring-amber-200"   },
+  Offline: { dot: "bg-stone-400",   text: "text-stone-500",   bg: "bg-stone-100",   ring: "ring-stone-200"   },
+};
+
+function StatusBadge({ value }: { value: string }) {
+  const cfg = statusConfig[value as Status] ?? statusConfig.Offline;
+  return (
+    <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold ring-1 ${cfg.bg} ${cfg.text} ${cfg.ring}`}>
+      <span className={`w-1.5 h-1.5 rounded-full ${cfg.dot}`} />
+      {value}
+    </span>
+  );
+}
+
+// ─── Score ring ───────────────────────────────────────────────────────────────
+
+function ScoreCell({ value }: { value: number }) {
+  const color =
+    value >= 90 ? "#16a34a" :
+    value >= 75 ? "#2563eb" :
+    value >= 60 ? "#d97706" : "#dc2626";
+  const circumference = 87.96;
+  const dash = (value / 100) * circumference;
+  return (
+    <div className="flex items-center gap-2">
+      <div className="relative w-8 h-8 flex-shrink-0">
+        <svg viewBox="0 0 36 36" className="w-8 h-8 -rotate-90">
+          <circle cx="18" cy="18" r="14" fill="none" stroke="#e7e5e4" strokeWidth="3.5" />
+          <circle
+            cx="18" cy="18" r="14" fill="none"
+            stroke={color} strokeWidth="3.5"
+            strokeDasharray={`${dash} ${circumference}`}
+            strokeLinecap="round"
+          />
+        </svg>
+        <span className="absolute inset-0 flex items-center justify-center text-[9px] font-black text-stone-700">
+          {value}
+        </span>
+      </div>
+    </div>
+  );
+}
+
+// ─── Sort icon ────────────────────────────────────────────────────────────────
+
+function SortIcon({ isSorted }: { isSorted: false | "asc" | "desc" }) {
+  if (!isSorted) return <span className="ml-1 text-stone-300 text-xs">⇅</span>;
+  return <span className="ml-1 text-amber-500 text-xs">{isSorted === "asc" ? "↑" : "↓"}</span>;
+}
+
+// ─── Pagination button ────────────────────────────────────────────────────────
+
+interface PagBtnProps {
+  onClick: () => void;
+  disabled: boolean;
+  label: string;
+}
+
+function PagBtn({ onClick, disabled, label }: PagBtnProps) {
+  return (
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      className="w-8 h-8 rounded-lg text-sm font-bold text-stone-500 hover:bg-stone-100 disabled:opacity-25 disabled:cursor-not-allowed transition-all"
+    >
+      {label}
+    </button>
+  );
+}
+
+// ─── Auto column builder ──────────────────────────────────────────────────────
+
+function buildColumns<T extends Record<string, unknown>>(data: T[]): ColumnDef<T, unknown>[] {
+  if (!data.length) return [];
+  const helper = createColumnHelper<T>();
+
+  return (Object.keys(data[0]) as (keyof T & string)[]).map((key) =>
+    helper.accessor(key as never, {
+      id: key,
+      header: key.charAt(0).toUpperCase() + key.slice(1),
+      cell: (info) => {
+        const val = info.getValue();
+        if (key === "status") return <StatusBadge value={String(val)} />;
+        if (key === "score" && typeof val === "number") return <ScoreCell value={val} />;
+        if (key === "id") return <span className="font-mono text-xs text-stone-400 tabular-nums">#{String(val)}</span>;
+        return <span className="text-stone-700 text-sm">{String(val)}</span>;
+      },
+    })
+  );
+}
+
+// ─── Main component ───────────────────────────────────────────────────────────
+
+export default function DynamicTable<T extends Record<string, unknown>>({
+  data = sampleData as unknown as T[],
+  columns: columnsProp,
+}: DynamicTableProps<T>) {
+  const [globalFilter, setGlobalFilter] = useState<string>("");
+  const [sorting, setSorting] = useState<SortingState>([]);
+
+  const autoColumns = useMemo(() => buildColumns(data), [data]);
+  const columns = columnsProp ?? autoColumns;
+
+  const table = useReactTable<T>({
+    data,
+    columns,
+    state: { globalFilter, sorting },
+    onGlobalFilterChange: setGlobalFilter,
+    onSortingChange: setSorting,
+    getCoreRowModel: getCoreRowModel(),
+    getSortedRowModel: getSortedRowModel(),
+    getFilteredRowModel: getFilteredRowModel(),
+    getPaginationRowModel: getPaginationRowModel(),
+    initialState: { pagination: { pageSize: 6 } },
+  });
+
+  const { pageIndex, pageSize } = table.getState().pagination;
+  const totalRows = table.getFilteredRowModel().rows.length;
+  const start = pageIndex * pageSize + 1;
+  const end = Math.min((pageIndex + 1) * pageSize, totalRows);
+
+  return (
+    <div
+      className="min-h-screen flex items-start justify-center p-8"
+      style={{
+        background: "linear-gradient(135deg, #faf8f5 0%, #ede9e0 100%)",
+        fontFamily: "'Palatino Linotype', 'Book Antiqua', Palatino, serif",
+      }}
+    >
+      <div className="w-full max-w-6xl">
+
+        {/* ── Title + search ── */}
+        <div className="flex items-end justify-between mb-8 gap-4 flex-wrap">
+          <div>
+            <div className="text-xs font-sans font-bold uppercase tracking-[0.22em] text-amber-600 mb-1">
+              TanStack Table · TypeScript
+            </div>
+            <h1 className="text-5xl font-black text-stone-900 leading-none" style={{ letterSpacing: "-0.035em" }}>
+              Records
+            </h1>
+          </div>
+
+          <div className="relative font-sans">
+            <svg className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-stone-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0z" />
+            </svg>
+            <input
+              type="text"
+              placeholder="Global filter…"
+              value={globalFilter}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setGlobalFilter(e.target.value)}
+              className="pl-10 pr-4 py-2.5 w-56 rounded-xl border border-stone-300 bg-white/90 text-stone-800 text-sm placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-transparent transition shadow-sm"
+            />
+          </div>
+        </div>
+
+        {/* ── Table ── */}
+        <div className="rounded-2xl overflow-hidden shadow-xl shadow-stone-300/60 border border-stone-200 bg-white">
+          <table className="w-full text-left border-collapse">
+            <thead>
+              {table.getHeaderGroups().map((hg) => (
+                <tr key={hg.id} className="border-b-2 border-stone-200 bg-stone-50">
+                  {hg.headers.map((header) => (
+                    <th
+                      key={header.id}
+                      onClick={header.column.getToggleSortingHandler()}
+                      className="px-5 py-4 text-xs font-sans font-bold uppercase tracking-widest text-stone-500 cursor-pointer select-none hover:text-amber-600 transition-colors whitespace-nowrap"
+                    >
+                      <span className="inline-flex items-center">
+                        {flexRender(header.column.columnDef.header, header.getContext())}
+                        <SortIcon isSorted={header.column.getIsSorted()} />
+                      </span>
+                    </th>
+                  ))}
+                </tr>
+              ))}
+            </thead>
+            <tbody>
+              {table.getRowModel().rows.length === 0 ? (
+                <tr>
+                  <td colSpan={columns.length} className="text-center py-20 text-stone-400 font-sans text-sm">
+                    No records match &ldquo;{globalFilter}&rdquo;
+                  </td>
+                </tr>
+              ) : (
+                table.getRowModel().rows.map((row, i) => (
+                  <tr
+                    key={row.id}
+                    className={`border-b border-stone-100 transition-colors duration-100 hover:bg-amber-50/70 ${i % 2 === 1 ? "bg-stone-50/50" : ""}`}
+                  >
+                    {row.getVisibleCells().map((cell) => (
+                      <td key={cell.id} className="px-5 py-3.5">
+                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                      </td>
+                    ))}
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+
+        {/* ── Pagination ── */}
+        <div className="mt-4 flex items-center justify-between font-sans gap-4 flex-wrap">
+          <span className="text-xs text-stone-500">
+            {totalRows > 0 ? `Showing ${start}–${end} of ${totalRows} records` : "0 records"}
+          </span>
+
+          <div className="flex items-center gap-1">
+            <PagBtn onClick={() => table.setPageIndex(0)}                          disabled={!table.getCanPreviousPage()} label="«" />
+            <PagBtn onClick={() => table.previousPage()}                           disabled={!table.getCanPreviousPage()} label="‹" />
+            {Array.from({ length: table.getPageCount() }, (_, i) => (
+              <button
+                key={i}
+                onClick={() => table.setPageIndex(i)}
+                className={`w-8 h-8 rounded-lg text-xs font-bold transition-all ${
+                  i === pageIndex
+                    ? "bg-amber-500 text-white shadow-md shadow-amber-200"
+                    : "text-stone-500 hover:bg-stone-100"
+                }`}
+              >
+                {i + 1}
+              </button>
+            ))}
+            <PagBtn onClick={() => table.nextPage()}                               disabled={!table.getCanNextPage()} label="›" />
+            <PagBtn onClick={() => table.setPageIndex(table.getPageCount() - 1)}  disabled={!table.getCanNextPage()} label="»" />
+          </div>
+
+          <select
+            value={pageSize}
+            onChange={(e: React.ChangeEvent<HTMLSelectElement>) => table.setPageSize(Number(e.target.value))}
+            className="text-xs border border-stone-200 rounded-lg px-2.5 py-1.5 text-stone-600 bg-white focus:outline-none focus:ring-2 focus:ring-amber-400 cursor-pointer"
+          >
+            {[4, 6, 8, 12].map((s) => (
+              <option key={s} value={s}>Show {s}</option>
+            ))}
+          </select>
+        </div>
+
+        <p className="mt-6 text-center text-stone-400 text-xs font-sans">
+          Powered by TanStack Table v8 · Generic over{" "}
+          <code className="text-amber-600">T extends Record&lt;string, unknown&gt;</code>
+        </p>
+      </div>
+    </div>
+  );
+}
