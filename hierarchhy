@@ -695,15 +695,13 @@ function prepareHierarchy<TItem extends object>(
   nodeById.forEach((node) => {
     const parent = node.parentId ? nodeById.get(node.parentId) : undefined;
 
-    if (parent) {
+    if (parent && parent.id !== node.id) {
       parent.children.push(node);
     } else {
       roots.push(node);
     }
   });
 
-  roots.sort(compareByTitle);
-  nodeById.forEach((node) => node.children.sort(compareByTitle));
   roots.forEach((root) => applyNodeMetadata(root, 0, root.id, [root.id]));
   assignNodeColors(roots);
 
@@ -766,13 +764,6 @@ function assignNodeColors<TItem extends object>(roots: PreparedNode<TItem>[]) {
   orderByBranch(roots).forEach((node, index) => {
     node.color = getNodeColor(index);
   });
-}
-
-function compareByTitle<TItem extends object>(
-  left: PreparedNode<TItem>,
-  right: PreparedNode<TItem>,
-) {
-  return left.title.localeCompare(right.title);
 }
 
 function getNodeColor(index: number) {
