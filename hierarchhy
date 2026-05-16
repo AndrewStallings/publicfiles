@@ -13,6 +13,7 @@ export type HierarchyFieldDefinition = {
 export type HierarchyKeyMap<TItem extends object> = {
   id: keyof TItem & string;
   parentId?: keyof TItem & string;
+  parentIdMatches?: keyof TItem & string;
   title: keyof TItem & string;
   subtitle?: keyof TItem & string;
   status?: keyof TItem & string;
@@ -24,6 +25,7 @@ export type HierarchyKeyMap<TItem extends object> = {
 export type HierarchyNode<TItem extends object = object> = {
   id: string;
   parentId?: string | null;
+  parentNodeId?: string;
   partVersion?: string;
   serialNumber?: string;
   title: string;
@@ -192,7 +194,7 @@ export function HierarchyExplorer<TItem extends object>({
             fields={fields}
             subInfoFields={subInfoFields}
             activeNode={activeNode}
-            nodeById={preparedHierarchy.nodeById}
+            parentNodeById={preparedHierarchy.parentNodeById}
             buildHref={buildHref}
             isSubmitting={isSubmitting}
             onSelect={selectNode}
@@ -204,7 +206,7 @@ export function HierarchyExplorer<TItem extends object>({
             subInfoFields={subInfoFields}
             activeNode={activeNode}
             activePath={activePath}
-            nodeById={preparedHierarchy.nodeById}
+            parentNodeById={preparedHierarchy.parentNodeById}
             buildHref={buildHref}
             isSubmitting={isSubmitting}
             onSelect={selectNode}
@@ -220,7 +222,7 @@ function MatrixView<TItem extends object>({
   fields,
   subInfoFields,
   activeNode,
-  nodeById,
+  parentNodeById,
   buildHref,
   isSubmitting,
   onSelect,
@@ -229,7 +231,7 @@ function MatrixView<TItem extends object>({
   fields: HierarchyFieldDefinition[];
   subInfoFields: HierarchyFieldDefinition[];
   activeNode: PreparedNode<TItem> | undefined;
-  nodeById: Map<string, PreparedNode<TItem>>;
+  parentNodeById: Map<string, PreparedNode<TItem>>;
   buildHref: (item: TItem, node: HierarchyNode<TItem>) => string;
   isSubmitting: boolean;
   onSelect: (node: PreparedNode<TItem>) => void;
@@ -245,16 +247,16 @@ function MatrixView<TItem extends object>({
         <div className="flex flex-col gap-3">
           {nodes.map((node) => {
             const nodeColor = node.color;
-            const mountedToColor = getMountedToColor(node, nodeById);
+            const mountedToColor = getMountedToColor(node, parentNodeById);
             const isActive = node.id === activeNode?.id;
 
             return (
               <article
                 key={node.id}
-                className={`block min-w-0 rounded-lg border p-3 text-left transition ${
+                className={`block min-w-0 rounded-lg border p-3 text-left transition focus-within:ring-2 focus-within:ring-[#5C9DAE] focus-within:ring-offset-2 focus-within:ring-offset-white dark:focus-within:ring-offset-zinc-950 ${
                   isActive
                     ? "border-[#00249C] bg-blue-50 dark:bg-blue-950/20"
-                    : "border-slate-200 bg-white hover:border-[#5C9DAE] dark:border-zinc-800 dark:bg-zinc-950"
+                    : "border-slate-200 bg-white hover:border-[#5C9DAE] dark:border-zinc-800 dark:bg-zinc-950 dark:hover:border-[#5C9DAE]"
                 } ${isSubmitting ? "opacity-60" : ""}`}
                 onClick={() => {
                   if (isSubmitting) {
@@ -274,7 +276,7 @@ function MatrixView<TItem extends object>({
                       <Link
                         href={buildHref(node.item, node)}
                         aria-disabled={isSubmitting}
-                        className={`block truncate text-sm font-semibold text-slate-950 underline-offset-4 hover:underline dark:text-zinc-50 ${
+                        className={`block truncate text-sm font-semibold text-slate-950 underline-offset-4 outline-none hover:underline focus-visible:underline dark:text-zinc-50 ${
                           isSubmitting ? "pointer-events-none" : ""
                         }`}
                         onClick={(event) => {
@@ -304,7 +306,7 @@ function MatrixView<TItem extends object>({
                   {visibleFields.map((field) => (
                     <div
                       key={field.key}
-                      className="min-h-10 rounded-md bg-slate-50 px-2 py-1.5 dark:bg-zinc-900"
+                      className="min-h-10 rounded-md border border-transparent bg-slate-50 px-2 py-1.5 dark:bg-zinc-900"
                     >
                       <dt className="text-[0.68rem] font-semibold uppercase tracking-wide text-[#7C8886] dark:text-zinc-500">
                         {field.label}
@@ -340,7 +342,7 @@ function StackView<TItem extends object>({
   subInfoFields,
   activeNode,
   activePath,
-  nodeById,
+  parentNodeById,
   buildHref,
   isSubmitting,
   onSelect,
@@ -350,7 +352,7 @@ function StackView<TItem extends object>({
   subInfoFields: HierarchyFieldDefinition[];
   activeNode: PreparedNode<TItem> | undefined;
   activePath: PreparedNode<TItem>[];
-  nodeById: Map<string, PreparedNode<TItem>>;
+  parentNodeById: Map<string, PreparedNode<TItem>>;
   buildHref: (item: TItem, node: HierarchyNode<TItem>) => string;
   isSubmitting: boolean;
   onSelect: (node: PreparedNode<TItem>) => void;
@@ -363,16 +365,16 @@ function StackView<TItem extends object>({
         <div className="flex flex-col gap-3">
           {activePath.map((node) => {
             const nodeColor = node.color;
-            const mountedToColor = getMountedToColor(node, nodeById);
+            const mountedToColor = getMountedToColor(node, parentNodeById);
             const isActive = node.id === activeNode?.id;
 
             return (
               <article
                 key={node.id}
-                className={`rounded-lg border bg-white p-3 shadow-sm transition dark:bg-zinc-950 ${
+                className={`rounded-lg border bg-white p-3 shadow-sm transition focus-within:ring-2 focus-within:ring-[#5C9DAE] focus-within:ring-offset-2 focus-within:ring-offset-white dark:bg-zinc-950 dark:focus-within:ring-offset-zinc-950 ${
                   isActive
                     ? "border-[#FF6D00] bg-orange-50 dark:bg-orange-950/20"
-                    : "border-slate-200 dark:border-zinc-800"
+                    : "border-slate-200 dark:border-zinc-800 dark:hover:border-[#5C9DAE]"
                 } ${isSubmitting ? "opacity-60" : ""}`}
                 onClick={() => {
                   if (isSubmitting) {
@@ -396,7 +398,7 @@ function StackView<TItem extends object>({
                     <Link
                       href={buildHref(node.item, node)}
                       aria-disabled={isSubmitting}
-                      className={`block truncate text-sm font-semibold text-slate-950 underline-offset-4 hover:underline dark:text-zinc-50 ${
+                      className={`block truncate text-sm font-semibold text-slate-950 underline-offset-4 outline-none hover:underline focus-visible:underline dark:text-zinc-50 ${
                         isSubmitting ? "pointer-events-none" : ""
                       }`}
                       onClick={(event) => {
@@ -417,7 +419,7 @@ function StackView<TItem extends object>({
                       <MetaChip label="Serial" value={node.serialNumber} />
                       <MetaChip label="Version" value={node.partVersion} />
                     </div>
-                    <div className="mt-2 rounded-md bg-slate-50 p-2 dark:bg-zinc-900">
+                    <div className="mt-2 rounded-md border border-transparent bg-slate-50 p-2 dark:bg-zinc-900">
                       <p className="text-[0.68rem] font-semibold uppercase tracking-wide text-[#7C8886] dark:text-zinc-500">
                         {visibleFields[0]?.label ?? "Mounted to"}
                       </p>
@@ -453,10 +455,10 @@ function StackView<TItem extends object>({
             key={node.id}
             type="button"
             disabled={isSubmitting}
-            className={`min-h-16 rounded-md border px-3 py-2 text-left transition ${
+            className={`min-h-16 rounded-md border px-3 py-2 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#5C9DAE] focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-zinc-950 ${
               node.id === activeNode?.id
                 ? "border-[#00249C] bg-blue-50 text-[#00249C] dark:bg-blue-950/30 dark:text-blue-200"
-                : "border-slate-200 bg-white text-slate-700 hover:border-[#5C9DAE] dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-300"
+                : "border-slate-200 bg-white text-slate-700 hover:border-[#5C9DAE] dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-300 dark:hover:border-[#5C9DAE]"
             } disabled:cursor-not-allowed disabled:opacity-60`}
             onClick={() => onSelect(node)}
           >
@@ -498,7 +500,7 @@ function SegmentedControl({
             key={option.value}
             type="button"
             disabled={isDisabled}
-            className={`min-h-9 rounded-md px-3 text-sm font-semibold transition ${
+            className={`min-h-9 rounded-md px-3 text-sm font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#5C9DAE] focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-zinc-950 ${
               value === option.value
                 ? "bg-[#00249C] text-white"
                 : "text-slate-600 hover:bg-slate-100 dark:text-zinc-300 dark:hover:bg-zinc-900"
@@ -526,7 +528,7 @@ function SubInfoCards({
 
   return (
     <details className="group mt-3 rounded-md border border-slate-200 bg-white dark:border-zinc-800 dark:bg-zinc-950">
-      <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-3 py-2 text-xs font-semibold text-[#00249C] outline-none transition hover:bg-slate-50 focus-visible:ring-2 focus-visible:ring-[#5C9DAE] dark:text-blue-200 dark:hover:bg-zinc-900 [&::-webkit-details-marker]:hidden">
+      <summary className="flex cursor-pointer list-none items-center justify-between gap-3 rounded-md px-3 py-2 text-xs font-semibold text-[#00249C] outline-none transition hover:bg-slate-50 focus-visible:ring-2 focus-visible:ring-[#5C9DAE] focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:text-blue-200 dark:hover:bg-zinc-900 dark:focus-visible:ring-offset-zinc-950 [&::-webkit-details-marker]:hidden">
         <span className="truncate">
           Sub information ({items.length}{" "}
           {items.length === 1 ? "item" : "items"})
@@ -539,7 +541,7 @@ function SubInfoCards({
         {items.map((item, itemIndex) => (
           <article
             key={itemIndex}
-            className="rounded-md bg-slate-50 px-2 py-1.5 dark:bg-zinc-900"
+            className="rounded-md border border-transparent bg-slate-50 px-2 py-1.5 dark:bg-zinc-900"
           >
             <div className="mb-1.5 flex items-center justify-between gap-2">
               <h3 className="truncate text-xs font-semibold text-slate-800 dark:text-zinc-100">
@@ -571,7 +573,7 @@ function TruncatedValue({ value }: { value: HierarchyFieldValue }) {
       <span className="block truncate text-xs font-semibold leading-5 text-slate-800 dark:text-zinc-100">
         {formattedValue}
       </span>
-      <span className="pointer-events-none absolute left-0 top-full z-30 mt-2 hidden w-[min(28rem,80vw)] rounded-lg border border-slate-200 bg-white p-3 text-xs font-medium leading-5 text-slate-800 opacity-0 shadow-xl ring-1 ring-black/5 transition group-hover/value:block group-hover/value:opacity-100 group-focus-within/value:block group-focus-within/value:opacity-100 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100">
+      <span className="pointer-events-none absolute left-0 top-full z-30 mt-2 hidden w-[min(28rem,80vw)] rounded-lg border border-slate-200 bg-white p-3 text-xs font-medium leading-5 text-slate-800 opacity-0 shadow-xl ring-1 ring-black/5 transition group-hover/value:block group-hover/value:opacity-100 group-focus-within/value:block group-focus-within/value:opacity-100 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100 dark:ring-white/10">
         {formattedValue}
       </span>
     </span>
@@ -636,6 +638,8 @@ function prepareHierarchy<TItem extends object>(
   hierarchy: HierarchyKeyMap<TItem>,
 ) {
   const nodeById = new Map<string, PreparedNode<TItem>>();
+  const nodeByParentMatchValue = new Map<string, PreparedNode<TItem>>();
+  const parentNodeById = new Map<string, PreparedNode<TItem>>();
 
   data.forEach((item) => {
     const id = readString(item, hierarchy.id);
@@ -680,23 +684,36 @@ function prepareHierarchy<TItem extends object>(
       node.status = status;
     }
 
-    nodeById.set(node.id, {
+    const preparedNode: PreparedNode<TItem> = {
       ...node,
       children: [],
       color: "#00249C",
       depth: 0,
       rootId: node.id,
       path: [node.id],
-    });
+    };
+    const parentMatchValue = hierarchy.parentIdMatches
+      ? readString(item, hierarchy.parentIdMatches)
+      : id;
+
+    nodeById.set(preparedNode.id, preparedNode);
+
+    if (parentMatchValue) {
+      nodeByParentMatchValue.set(parentMatchValue, preparedNode);
+    }
   });
 
   const roots: PreparedNode<TItem>[] = [];
 
   nodeById.forEach((node) => {
-    const parent = node.parentId ? nodeById.get(node.parentId) : undefined;
+    const parent = node.parentId
+      ? (nodeByParentMatchValue.get(node.parentId) ?? nodeById.get(node.parentId))
+      : undefined;
 
     if (parent && parent.id !== node.id) {
       parent.children.push(node);
+      node.parentNodeId = parent.id;
+      parentNodeById.set(node.id, parent);
     } else {
       roots.push(node);
     }
@@ -705,7 +722,7 @@ function prepareHierarchy<TItem extends object>(
   roots.forEach((root) => applyNodeMetadata(root, 0, root.id, [root.id]));
   assignNodeColors(roots);
 
-  return { roots, nodeById };
+  return { roots, nodeById, parentNodeById };
 }
 
 function applyNodeMetadata<TItem extends object>(
@@ -779,13 +796,9 @@ function getNodeColor(index: number) {
 
 function getMountedToColor<TItem extends object>(
   node: PreparedNode<TItem>,
-  nodeById: Map<string, PreparedNode<TItem>>,
+  parentNodeById: Map<string, PreparedNode<TItem>>,
 ) {
-  if (!node.parentId) {
-    return node.color;
-  }
-
-  return nodeById.get(node.parentId)?.color ?? node.color;
+  return parentNodeById.get(node.id)?.color ?? node.color;
 }
 
 function getFieldValue(item: object, key: string): HierarchyFieldValue {
