@@ -5,15 +5,12 @@ import { useMemo, useState } from "react";
 
 export type HierarchyFieldValue = string | number | null | undefined;
 
-export type HierarchyFieldDefinition<TFieldKey extends string = string> = {
-  key: TFieldKey;
+export type HierarchyFieldDefinition = {
+  key: string;
   label: string;
 };
 
-export type HierarchyNode<
-  TFieldKey extends string = string,
-  TSubInfoKey extends string = string,
-> = {
+export type HierarchyNode = {
   id: string;
   parentId?: string | null;
   partVersion?: string;
@@ -21,34 +18,28 @@ export type HierarchyNode<
   title: string;
   subtitle?: string;
   status?: string;
-  fields: Record<TFieldKey, HierarchyFieldValue>;
-  subInfo?: Record<TSubInfoKey, HierarchyFieldValue>[];
+  fields: Record<string, HierarchyFieldValue>;
+  subInfo?: Record<string, HierarchyFieldValue>[];
 };
 
 export type HierarchySortMode = "level" | "branch";
 export type HierarchyViewMode = "matrix" | "stack";
 
-type PreparedNode<
-  TFieldKey extends string = string,
-  TSubInfoKey extends string = string,
-> = HierarchyNode<TFieldKey, TSubInfoKey> & {
-  children: PreparedNode<TFieldKey, TSubInfoKey>[];
+type PreparedNode = HierarchyNode & {
+  children: PreparedNode[];
   color: string;
   depth: number;
   rootId: string;
   path: string[];
 };
 
-export type HierarchyExplorerProps<
-  TFieldKey extends string = string,
-  TSubInfoKey extends string = string,
-> = {
+export type HierarchyExplorerProps = {
   title?: string;
   description?: string;
   className?: string;
-  nodes: HierarchyNode<TFieldKey, TSubInfoKey>[];
-  fields: HierarchyFieldDefinition<TFieldKey>[];
-  subInfoFields?: HierarchyFieldDefinition<TSubInfoKey>[];
+  nodes: HierarchyNode[];
+  fields: HierarchyFieldDefinition[];
+  subInfoFields?: HierarchyFieldDefinition[];
   isLoading?: boolean;
   error?: string | null;
   isSubmitting?: boolean;
@@ -56,8 +47,8 @@ export type HierarchyExplorerProps<
   initialSortMode?: HierarchySortMode;
   initialViewMode?: HierarchyViewMode;
   selectedNodeId?: string;
-  buildHref?: (node: HierarchyNode<TFieldKey, TSubInfoKey>) => string;
-  onNodeSelect?: (node: HierarchyNode<TFieldKey, TSubInfoKey>) => void;
+  buildHref?: (node: HierarchyNode) => string;
+  onNodeSelect?: (node: HierarchyNode) => void;
 };
 
 const accentColors = [
@@ -79,10 +70,7 @@ const accentColors = [
   "#526500",
 ];
 
-export function HierarchyExplorer<
-  TFieldKey extends string,
-  TSubInfoKey extends string = string,
->({
+export function HierarchyExplorer({
   title = "Hierarchy explorer",
   description = "Review hierarchical records by level or by full branch.",
   className = "",
@@ -98,7 +86,7 @@ export function HierarchyExplorer<
   selectedNodeId,
   buildHref = (node) => `/${node.id}`,
   onNodeSelect,
-}: HierarchyExplorerProps<TFieldKey, TSubInfoKey>) {
+}: HierarchyExplorerProps) {
   const [sortMode, setSortMode] = useState<HierarchySortMode>(initialSortMode);
   const [viewMode, setViewMode] = useState<HierarchyViewMode>(initialViewMode);
   const [internalSelectedNodeId, setInternalSelectedNodeId] = useState<
@@ -119,11 +107,9 @@ export function HierarchyExplorer<
   const activePath =
     activeNode?.path
       .map((id) => preparedHierarchy.nodeById.get(id))
-      .filter(
-        (node): node is PreparedNode<TFieldKey, TSubInfoKey> => Boolean(node),
-      ) ?? [];
+      .filter((node): node is PreparedNode => Boolean(node)) ?? [];
 
-  function selectNode(node: PreparedNode<TFieldKey, TSubInfoKey>) {
+  function selectNode(node: PreparedNode) {
     if (isSubmitting) {
       return;
     }
@@ -213,7 +199,7 @@ export function HierarchyExplorer<
   );
 }
 
-function MatrixView<TFieldKey extends string, TSubInfoKey extends string>({
+function MatrixView({
   nodes,
   fields,
   subInfoFields,
@@ -223,14 +209,14 @@ function MatrixView<TFieldKey extends string, TSubInfoKey extends string>({
   isSubmitting,
   onSelect,
 }: {
-  nodes: PreparedNode<TFieldKey, TSubInfoKey>[];
-  fields: HierarchyFieldDefinition<TFieldKey>[];
-  subInfoFields: HierarchyFieldDefinition<TSubInfoKey>[];
-  activeNode: PreparedNode<TFieldKey, TSubInfoKey> | undefined;
-  nodeById: Map<string, PreparedNode<TFieldKey, TSubInfoKey>>;
-  buildHref: (node: HierarchyNode<TFieldKey, TSubInfoKey>) => string;
+  nodes: PreparedNode[];
+  fields: HierarchyFieldDefinition[];
+  subInfoFields: HierarchyFieldDefinition[];
+  activeNode: PreparedNode | undefined;
+  nodeById: Map<string, PreparedNode>;
+  buildHref: (node: HierarchyNode) => string;
   isSubmitting: boolean;
-  onSelect: (node: PreparedNode<TFieldKey, TSubInfoKey>) => void;
+  onSelect: (node: PreparedNode) => void;
 }) {
   const visibleFields = fields.slice(0, 5);
 
@@ -330,7 +316,7 @@ function MatrixView<TFieldKey extends string, TSubInfoKey extends string>({
   );
 }
 
-function StackView<TFieldKey extends string, TSubInfoKey extends string>({
+function StackView({
   nodes,
   fields,
   subInfoFields,
@@ -341,15 +327,15 @@ function StackView<TFieldKey extends string, TSubInfoKey extends string>({
   isSubmitting,
   onSelect,
 }: {
-  nodes: PreparedNode<TFieldKey, TSubInfoKey>[];
-  fields: HierarchyFieldDefinition<TFieldKey>[];
-  subInfoFields: HierarchyFieldDefinition<TSubInfoKey>[];
-  activeNode: PreparedNode<TFieldKey, TSubInfoKey> | undefined;
-  activePath: PreparedNode<TFieldKey, TSubInfoKey>[];
-  nodeById: Map<string, PreparedNode<TFieldKey, TSubInfoKey>>;
-  buildHref: (node: HierarchyNode<TFieldKey, TSubInfoKey>) => string;
+  nodes: PreparedNode[];
+  fields: HierarchyFieldDefinition[];
+  subInfoFields: HierarchyFieldDefinition[];
+  activeNode: PreparedNode | undefined;
+  activePath: PreparedNode[];
+  nodeById: Map<string, PreparedNode>;
+  buildHref: (node: HierarchyNode) => string;
   isSubmitting: boolean;
-  onSelect: (node: PreparedNode<TFieldKey, TSubInfoKey>) => void;
+  onSelect: (node: PreparedNode) => void;
 }) {
   const visibleFields = fields.slice(0, 5);
 
@@ -509,12 +495,12 @@ function SegmentedControl({
   );
 }
 
-function SubInfoCards<TSubInfoKey extends string>({
+function SubInfoCards({
   fields,
   items,
 }: {
-  fields: HierarchyFieldDefinition<TSubInfoKey>[];
-  items: Record<TSubInfoKey, HierarchyFieldValue>[];
+  fields: HierarchyFieldDefinition[];
+  items: Record<string, HierarchyFieldValue>[];
 }) {
   if (fields.length === 0 || items.length === 0) {
     return null;
@@ -524,7 +510,8 @@ function SubInfoCards<TSubInfoKey extends string>({
     <details className="group mt-3 rounded-md border border-slate-200 bg-white dark:border-zinc-800 dark:bg-zinc-950">
       <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-3 py-2 text-xs font-semibold text-[#00249C] outline-none transition hover:bg-slate-50 focus-visible:ring-2 focus-visible:ring-[#5C9DAE] dark:text-blue-200 dark:hover:bg-zinc-900 [&::-webkit-details-marker]:hidden">
         <span className="truncate">
-          Sub information ({items.length} {items.length === 1 ? "item" : "items"})
+          Sub information ({items.length}{" "}
+          {items.length === 1 ? "item" : "items"})
         </span>
         <span className="shrink-0 text-[0.68rem] text-slate-500 transition group-open:rotate-180 dark:text-zinc-400">
           v
@@ -626,10 +613,8 @@ function StatePanel({
   );
 }
 
-function prepareHierarchy<TFieldKey extends string, TSubInfoKey extends string>(
-  nodes: HierarchyNode<TFieldKey, TSubInfoKey>[],
-) {
-  const nodeById = new Map<string, PreparedNode<TFieldKey, TSubInfoKey>>();
+function prepareHierarchy(nodes: HierarchyNode[]) {
+  const nodeById = new Map<string, PreparedNode>();
 
   nodes.forEach((node) => {
     nodeById.set(node.id, {
@@ -642,7 +627,7 @@ function prepareHierarchy<TFieldKey extends string, TSubInfoKey extends string>(
     });
   });
 
-  const roots: PreparedNode<TFieldKey, TSubInfoKey>[] = [];
+  const roots: PreparedNode[] = [];
 
   nodeById.forEach((node) => {
     const parent = node.parentId ? nodeById.get(node.parentId) : undefined;
@@ -662,8 +647,8 @@ function prepareHierarchy<TFieldKey extends string, TSubInfoKey extends string>(
   return { roots, nodeById };
 }
 
-function applyNodeMetadata<TFieldKey extends string, TSubInfoKey extends string>(
-  node: PreparedNode<TFieldKey, TSubInfoKey>,
+function applyNodeMetadata(
+  node: PreparedNode,
   depth: number,
   rootId: string,
   path: string[],
@@ -677,17 +662,15 @@ function applyNodeMetadata<TFieldKey extends string, TSubInfoKey extends string>
   );
 }
 
-function orderNodes<TFieldKey extends string, TSubInfoKey extends string>(
-  roots: PreparedNode<TFieldKey, TSubInfoKey>[],
+function orderNodes(
+  roots: PreparedNode[],
   sortMode: HierarchySortMode,
 ) {
   return sortMode === "level" ? orderByLevel(roots) : orderByBranch(roots);
 }
 
-function orderByLevel<TFieldKey extends string, TSubInfoKey extends string>(
-  roots: PreparedNode<TFieldKey, TSubInfoKey>[],
-) {
-  const ordered: PreparedNode<TFieldKey, TSubInfoKey>[] = [];
+function orderByLevel(roots: PreparedNode[]) {
+  const ordered: PreparedNode[] = [];
   const queue = [...roots];
 
   while (queue.length > 0) {
@@ -704,12 +687,10 @@ function orderByLevel<TFieldKey extends string, TSubInfoKey extends string>(
   return ordered;
 }
 
-function orderByBranch<TFieldKey extends string, TSubInfoKey extends string>(
-  roots: PreparedNode<TFieldKey, TSubInfoKey>[],
-) {
-  const ordered: PreparedNode<TFieldKey, TSubInfoKey>[] = [];
+function orderByBranch(roots: PreparedNode[]) {
+  const ordered: PreparedNode[] = [];
 
-  function visit(node: PreparedNode<TFieldKey, TSubInfoKey>) {
+  function visit(node: PreparedNode) {
     ordered.push(node);
     node.children.forEach(visit);
   }
@@ -718,18 +699,13 @@ function orderByBranch<TFieldKey extends string, TSubInfoKey extends string>(
   return ordered;
 }
 
-function assignNodeColors<TFieldKey extends string, TSubInfoKey extends string>(
-  roots: PreparedNode<TFieldKey, TSubInfoKey>[],
-) {
+function assignNodeColors(roots: PreparedNode[]) {
   orderByBranch(roots).forEach((node, index) => {
     node.color = getNodeColor(index);
   });
 }
 
-function compareByTitle<TFieldKey extends string, TSubInfoKey extends string>(
-  left: PreparedNode<TFieldKey, TSubInfoKey>,
-  right: PreparedNode<TFieldKey, TSubInfoKey>,
-) {
+function compareByTitle(left: PreparedNode, right: PreparedNode) {
   return left.title.localeCompare(right.title);
 }
 
@@ -744,9 +720,9 @@ function getNodeColor(index: number) {
   return `hsl(${hue.toFixed(1)} 76% 38%)`;
 }
 
-function getMountedToColor<TFieldKey extends string, TSubInfoKey extends string>(
-  node: PreparedNode<TFieldKey, TSubInfoKey>,
-  nodeById: Map<string, PreparedNode<TFieldKey, TSubInfoKey>>,
+function getMountedToColor(
+  node: PreparedNode,
+  nodeById: Map<string, PreparedNode>,
 ) {
   if (!node.parentId) {
     return node.color;
