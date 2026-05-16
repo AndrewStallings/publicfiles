@@ -10,7 +10,10 @@ export type HierarchyFieldDefinition<TFieldKey extends string = string> = {
   label: string;
 };
 
-export type HierarchyNode<TFieldKey extends string = string> = {
+export type HierarchyNode<
+  TFieldKey extends string = string,
+  TSubInfoKey extends string = string,
+> = {
   id: string;
   parentId?: string | null;
   partVersion?: string;
@@ -19,25 +22,33 @@ export type HierarchyNode<TFieldKey extends string = string> = {
   subtitle?: string;
   status?: string;
   fields: Record<TFieldKey, HierarchyFieldValue>;
+  subInfo?: Record<TSubInfoKey, HierarchyFieldValue>[];
 };
 
 export type HierarchySortMode = "level" | "branch";
 export type HierarchyViewMode = "matrix" | "stack";
 
-type PreparedNode<TFieldKey extends string = string> = HierarchyNode<TFieldKey> & {
-  children: PreparedNode<TFieldKey>[];
+type PreparedNode<
+  TFieldKey extends string = string,
+  TSubInfoKey extends string = string,
+> = HierarchyNode<TFieldKey, TSubInfoKey> & {
+  children: PreparedNode<TFieldKey, TSubInfoKey>[];
   color: string;
   depth: number;
   rootId: string;
   path: string[];
 };
 
-export type HierarchyExplorerProps<TFieldKey extends string = string> = {
+export type HierarchyExplorerProps<
+  TFieldKey extends string = string,
+  TSubInfoKey extends string = string,
+> = {
   title?: string;
   description?: string;
   className?: string;
-  nodes: HierarchyNode<TFieldKey>[];
+  nodes: HierarchyNode<TFieldKey, TSubInfoKey>[];
   fields: HierarchyFieldDefinition<TFieldKey>[];
+  subInfoFields?: HierarchyFieldDefinition<TSubInfoKey>[];
   isLoading?: boolean;
   error?: string | null;
   isSubmitting?: boolean;
@@ -45,8 +56,8 @@ export type HierarchyExplorerProps<TFieldKey extends string = string> = {
   initialSortMode?: HierarchySortMode;
   initialViewMode?: HierarchyViewMode;
   selectedNodeId?: string;
-  buildHref?: (node: HierarchyNode<TFieldKey>) => string;
-  onNodeSelect?: (node: HierarchyNode<TFieldKey>) => void;
+  buildHref?: (node: HierarchyNode<TFieldKey, TSubInfoKey>) => string;
+  onNodeSelect?: (node: HierarchyNode<TFieldKey, TSubInfoKey>) => void;
 };
 
 const accentColors = [
@@ -68,12 +79,16 @@ const accentColors = [
   "#526500",
 ];
 
-export function HierarchyExplorer<TFieldKey extends string>({
+export function HierarchyExplorer<
+  TFieldKey extends string,
+  TSubInfoKey extends string = string,
+>({
   title = "Hierarchy explorer",
   description = "Review hierarchical records by level or by full branch.",
   className = "",
   nodes,
   fields,
+  subInfoFields = [],
   isLoading = false,
   error = null,
   isSubmitting = false,
@@ -83,7 +98,7 @@ export function HierarchyExplorer<TFieldKey extends string>({
   selectedNodeId,
   buildHref = (node) => `/${node.id}`,
   onNodeSelect,
-}: HierarchyExplorerProps<TFieldKey>) {
+}: HierarchyExplorerProps<TFieldKey, TSubInfoKey>) {
   const [sortMode, setSortMode] = useState<HierarchySortMode>(initialSortMode);
   const [viewMode, setViewMode] = useState<HierarchyViewMode>(initialViewMode);
   const [internalSelectedNodeId, setInternalSelectedNodeId] = useState<
@@ -104,9 +119,11 @@ export function HierarchyExplorer<TFieldKey extends string>({
   const activePath =
     activeNode?.path
       .map((id) => preparedHierarchy.nodeById.get(id))
-      .filter((node): node is PreparedNode<TFieldKey> => Boolean(node)) ?? [];
+      .filter(
+        (node): node is PreparedNode<TFieldKey, TSubInfoKey> => Boolean(node),
+      ) ?? [];
 
-  function selectNode(node: PreparedNode<TFieldKey>) {
+  function selectNode(node: PreparedNode<TFieldKey, TSubInfoKey>) {
     if (isSubmitting) {
       return;
     }
@@ -171,6 +188,7 @@ export function HierarchyExplorer<TFieldKey extends string>({
           <MatrixView
             nodes={orderedNodes}
             fields={fields}
+            subInfoFields={subInfoFields}
             activeNode={activeNode}
             nodeById={preparedHierarchy.nodeById}
             buildHref={buildHref}
@@ -181,6 +199,7 @@ export function HierarchyExplorer<TFieldKey extends string>({
           <StackView
             nodes={orderedNodes}
             fields={fields}
+            subInfoFields={subInfoFields}
             activeNode={activeNode}
             activePath={activePath}
             nodeById={preparedHierarchy.nodeById}
@@ -194,31 +213,33 @@ export function HierarchyExplorer<TFieldKey extends string>({
   );
 }
 
-function MatrixView<TFieldKey extends string>({
+function MatrixView<TFieldKey extends string, TSubInfoKey extends string>({
   nodes,
   fields,
+  subInfoFields,
   activeNode,
   nodeById,
   buildHref,
   isSubmitting,
   onSelect,
 }: {
-  nodes: PreparedNode<TFieldKey>[];
+  nodes: PreparedNode<TFieldKey, TSubInfoKey>[];
   fields: HierarchyFieldDefinition<TFieldKey>[];
-  activeNode?: PreparedNode<TFieldKey>;
-  nodeById: Map<string, PreparedNode<TFieldKey>>;
-  buildHref: (node: HierarchyNode<TFieldKey>) => string;
+  subInfoFields: HierarchyFieldDefinition<TSubInfoKey>[];
+  activeNode: PreparedNode<TFieldKey, TSubInfoKey> | undefined;
+  nodeById: Map<string, PreparedNode<TFieldKey, TSubInfoKey>>;
+  buildHref: (node: HierarchyNode<TFieldKey, TSubInfoKey>) => string;
   isSubmitting: boolean;
-  onSelect: (node: PreparedNode<TFieldKey>) => void;
+  onSelect: (node: PreparedNode<TFieldKey, TSubInfoKey>) => void;
 }) {
-  const visibleFields = fields.slice(0, 7);
+  const visibleFields = fields.slice(0, 5);
 
   return (
-    <div className="min-w-0 overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-950">
-      <div className="bg-[#00249C] px-4 py-3 text-sm font-semibold text-white">
+    <div className="min-w-0 rounded-lg border border-slate-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-950">
+      <div className="rounded-t-lg bg-[#00249C] px-4 py-3 text-sm font-semibold text-white">
         Matrix view
       </div>
-      <div className="max-h-[min(42rem,70vh)] overflow-auto p-3">
+      <div className="p-3">
         <div className="flex flex-col gap-3">
           {nodes.map((node) => {
             const nodeColor = node.color;
@@ -226,18 +247,15 @@ function MatrixView<TFieldKey extends string>({
             const isActive = node.id === activeNode?.id;
 
             return (
-              <Link
+              <article
                 key={node.id}
-                href={buildHref(node)}
-                aria-disabled={isSubmitting}
-                className={`block min-w-0 rounded-lg border p-4 text-left transition ${
+                className={`block min-w-0 rounded-lg border p-3 text-left transition ${
                   isActive
                     ? "border-[#00249C] bg-blue-50 dark:bg-blue-950/20"
                     : "border-slate-200 bg-white hover:border-[#5C9DAE] dark:border-zinc-800 dark:bg-zinc-950"
-                } ${isSubmitting ? "pointer-events-none opacity-60" : ""}`}
-                onClick={(event) => {
+                } ${isSubmitting ? "opacity-60" : ""}`}
+                onClick={() => {
                   if (isSubmitting) {
-                    event.preventDefault();
                     return;
                   }
 
@@ -251,10 +269,24 @@ function MatrixView<TFieldKey extends string>({
                       style={{ backgroundColor: nodeColor }}
                     />
                     <span className="min-w-0">
-                      <span className="block truncate text-base font-semibold">
+                      <Link
+                        href={buildHref(node)}
+                        aria-disabled={isSubmitting}
+                        className={`block truncate text-sm font-semibold text-slate-950 underline-offset-4 hover:underline dark:text-zinc-50 ${
+                          isSubmitting ? "pointer-events-none" : ""
+                        }`}
+                        onClick={(event) => {
+                          if (isSubmitting) {
+                            event.preventDefault();
+                            return;
+                          }
+
+                          onSelect(node);
+                        }}
+                      >
                         {node.title}
-                      </span>
-                      <span className="block truncate text-sm font-medium text-slate-500 dark:text-zinc-400">
+                      </Link>
+                      <span className="block truncate text-xs font-medium text-slate-500 dark:text-zinc-400">
                         {node.subtitle ?? node.id}
                       </span>
                     </span>
@@ -266,28 +298,30 @@ function MatrixView<TFieldKey extends string>({
                   ) : null}
                 </div>
 
-                <dl className="mt-4 grid min-w-0 gap-3 sm:grid-cols-[minmax(0,14rem)_minmax(0,1fr)]">
+                <dl className="mt-3 grid min-w-0 gap-2 sm:grid-cols-2 lg:grid-cols-3">
                   {visibleFields.map((field) => (
                     <div
                       key={field.key}
-                      className="min-h-14 rounded-md bg-slate-50 p-3 dark:bg-zinc-900"
+                      className="min-h-10 rounded-md bg-slate-50 px-2 py-1.5 dark:bg-zinc-900"
                     >
-                      <dt className="text-xs font-semibold uppercase tracking-wide text-[#7C8886] dark:text-zinc-500">
+                      <dt className="text-[0.68rem] font-semibold uppercase tracking-wide text-[#7C8886] dark:text-zinc-500">
                         {field.label}
                       </dt>
-                      <dd className="mt-1 flex min-w-0 items-center gap-2 text-sm font-semibold text-slate-800 dark:text-zinc-100">
+                      <dd className="mt-1 flex min-w-0 items-center gap-2 text-xs font-semibold text-slate-800 dark:text-zinc-100">
                         <span
                           className="h-2.5 w-2.5 shrink-0 rounded-full"
                           style={{ backgroundColor: mountedToColor }}
                         />
-                        <span className="truncate">
-                          {formatValue(node.fields[field.key])}
-                        </span>
+                        <TruncatedValue value={node.fields[field.key]} />
                       </dd>
                     </div>
                   ))}
                 </dl>
-              </Link>
+                <SubInfoCards
+                  fields={subInfoFields}
+                  items={node.subInfo ?? []}
+                />
+              </article>
             );
           })}
         </div>
@@ -296,9 +330,10 @@ function MatrixView<TFieldKey extends string>({
   );
 }
 
-function StackView<TFieldKey extends string>({
+function StackView<TFieldKey extends string, TSubInfoKey extends string>({
   nodes,
   fields,
+  subInfoFields,
   activeNode,
   activePath,
   nodeById,
@@ -306,16 +341,17 @@ function StackView<TFieldKey extends string>({
   isSubmitting,
   onSelect,
 }: {
-  nodes: PreparedNode<TFieldKey>[];
+  nodes: PreparedNode<TFieldKey, TSubInfoKey>[];
   fields: HierarchyFieldDefinition<TFieldKey>[];
-  activeNode?: PreparedNode<TFieldKey>;
-  activePath: PreparedNode<TFieldKey>[];
-  nodeById: Map<string, PreparedNode<TFieldKey>>;
-  buildHref: (node: HierarchyNode<TFieldKey>) => string;
+  subInfoFields: HierarchyFieldDefinition<TSubInfoKey>[];
+  activeNode: PreparedNode<TFieldKey, TSubInfoKey> | undefined;
+  activePath: PreparedNode<TFieldKey, TSubInfoKey>[];
+  nodeById: Map<string, PreparedNode<TFieldKey, TSubInfoKey>>;
+  buildHref: (node: HierarchyNode<TFieldKey, TSubInfoKey>) => string;
   isSubmitting: boolean;
-  onSelect: (node: PreparedNode<TFieldKey>) => void;
+  onSelect: (node: PreparedNode<TFieldKey, TSubInfoKey>) => void;
 }) {
-  const visibleFields = fields.slice(0, 7);
+  const visibleFields = fields.slice(0, 5);
 
   return (
     <div className="min-w-0 rounded-lg border border-slate-200 bg-white p-4 shadow-sm dark:border-zinc-800 dark:bg-zinc-950">
@@ -327,18 +363,15 @@ function StackView<TFieldKey extends string>({
             const isActive = node.id === activeNode?.id;
 
             return (
-              <Link
+              <article
                 key={node.id}
-                href={buildHref(node)}
-                aria-disabled={isSubmitting}
-                className={`rounded-lg border bg-white p-4 shadow-sm transition dark:bg-zinc-950 ${
+                className={`rounded-lg border bg-white p-3 shadow-sm transition dark:bg-zinc-950 ${
                   isActive
                     ? "border-[#FF6D00] bg-orange-50 dark:bg-orange-950/20"
                     : "border-slate-200 dark:border-zinc-800"
-                } ${isSubmitting ? "pointer-events-none opacity-60" : ""}`}
-                onClick={(event) => {
+                } ${isSubmitting ? "opacity-60" : ""}`}
+                onClick={() => {
                   if (isSubmitting) {
-                    event.preventDefault();
                     return;
                   }
 
@@ -347,7 +380,7 @@ function StackView<TFieldKey extends string>({
               >
                 <div className="flex min-w-0 items-start gap-3">
                   <span
-                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-sm font-bold text-white"
+                    className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-xs font-bold text-white"
                     style={{ backgroundColor: nodeColor }}
                   >
                     {node.depth + 1}
@@ -356,35 +389,55 @@ function StackView<TFieldKey extends string>({
                     className="min-w-0 flex-1 border-l-4 pl-3"
                     style={{ borderColor: nodeColor }}
                   >
-                    <span className="block truncate text-base font-semibold">
+                    <Link
+                      href={buildHref(node)}
+                      aria-disabled={isSubmitting}
+                      className={`block truncate text-sm font-semibold text-slate-950 underline-offset-4 hover:underline dark:text-zinc-50 ${
+                        isSubmitting ? "pointer-events-none" : ""
+                      }`}
+                      onClick={(event) => {
+                        if (isSubmitting) {
+                          event.preventDefault();
+                          return;
+                        }
+
+                        onSelect(node);
+                      }}
+                    >
                       {node.title}
-                    </span>
-                    <span className="block truncate text-sm text-slate-500 dark:text-zinc-400">
+                    </Link>
+                    <span className="block truncate text-xs text-slate-500 dark:text-zinc-400">
                       {node.subtitle ?? node.id}
                     </span>
-                    <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                    <div className="mt-2 grid gap-2 sm:grid-cols-2">
                       <MetaChip label="Serial" value={node.serialNumber} />
                       <MetaChip label="Version" value={node.partVersion} />
                     </div>
-                    <div className="mt-3 rounded-md bg-slate-50 p-3 dark:bg-zinc-900">
-                      <p className="text-xs font-semibold uppercase tracking-wide text-[#7C8886] dark:text-zinc-500">
+                    <div className="mt-2 rounded-md bg-slate-50 p-2 dark:bg-zinc-900">
+                      <p className="text-[0.68rem] font-semibold uppercase tracking-wide text-[#7C8886] dark:text-zinc-500">
                         {visibleFields[0]?.label ?? "Mounted to"}
                       </p>
-                      <p className="mt-1 flex items-center gap-2 text-sm font-semibold text-slate-800 dark:text-zinc-100">
+                      <p className="mt-1 flex min-w-0 items-center gap-2 text-xs font-semibold text-slate-800 dark:text-zinc-100">
                         <span
                           className="h-2.5 w-2.5 shrink-0 rounded-full"
                           style={{ backgroundColor: mountedToColor }}
                         />
-                        {formatValue(
-                          visibleFields[0]
-                            ? node.fields[visibleFields[0].key]
-                            : node.parentId,
-                        )}
+                        <TruncatedValue
+                          value={
+                            visibleFields[0]
+                              ? node.fields[visibleFields[0].key]
+                              : node.parentId
+                          }
+                        />
                       </p>
                     </div>
+                    <SubInfoCards
+                      fields={subInfoFields}
+                      items={node.subInfo ?? []}
+                    />
                   </div>
                 </div>
-              </Link>
+              </article>
             );
           })}
         </div>
@@ -456,6 +509,70 @@ function SegmentedControl({
   );
 }
 
+function SubInfoCards<TSubInfoKey extends string>({
+  fields,
+  items,
+}: {
+  fields: HierarchyFieldDefinition<TSubInfoKey>[];
+  items: Record<TSubInfoKey, HierarchyFieldValue>[];
+}) {
+  if (fields.length === 0 || items.length === 0) {
+    return null;
+  }
+
+  return (
+    <details className="group mt-3 rounded-md border border-slate-200 bg-white dark:border-zinc-800 dark:bg-zinc-950">
+      <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-3 py-2 text-xs font-semibold text-[#00249C] outline-none transition hover:bg-slate-50 focus-visible:ring-2 focus-visible:ring-[#5C9DAE] dark:text-blue-200 dark:hover:bg-zinc-900 [&::-webkit-details-marker]:hidden">
+        <span className="truncate">
+          Sub information ({items.length} {items.length === 1 ? "item" : "items"})
+        </span>
+        <span className="shrink-0 text-[0.68rem] text-slate-500 transition group-open:rotate-180 dark:text-zinc-400">
+          v
+        </span>
+      </summary>
+      <div className="grid min-w-0 gap-2 border-t border-slate-200 p-2 dark:border-zinc-800">
+        {items.map((item, itemIndex) => (
+          <article
+            key={itemIndex}
+            className="rounded-md bg-slate-50 px-2 py-1.5 dark:bg-zinc-900"
+          >
+            <div className="mb-1.5 flex items-center justify-between gap-2">
+              <h3 className="truncate text-xs font-semibold text-slate-800 dark:text-zinc-100">
+                Item {itemIndex + 1}
+              </h3>
+            </div>
+            <div className="grid min-w-0 gap-x-3 gap-y-1.5 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
+              {fields.map((field) => (
+                <div key={field.key} className="min-w-0">
+                  <p className="truncate text-[0.65rem] font-semibold uppercase tracking-wide text-slate-500 dark:text-zinc-500">
+                    {field.label}
+                  </p>
+                  <TruncatedValue value={item[field.key]} />
+                </div>
+              ))}
+            </div>
+          </article>
+        ))}
+      </div>
+    </details>
+  );
+}
+
+function TruncatedValue({ value }: { value: HierarchyFieldValue }) {
+  const formattedValue = formatValue(value);
+
+  return (
+    <span className="group/value relative block min-w-0 max-w-full">
+      <span className="block truncate text-xs font-semibold leading-5 text-slate-800 dark:text-zinc-100">
+        {formattedValue}
+      </span>
+      <span className="pointer-events-none absolute left-0 top-full z-30 mt-2 hidden w-[min(28rem,80vw)] rounded-lg border border-slate-200 bg-white p-3 text-xs font-medium leading-5 text-slate-800 opacity-0 shadow-xl ring-1 ring-black/5 transition group-hover/value:block group-hover/value:opacity-100 group-focus-within/value:block group-focus-within/value:opacity-100 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100">
+        {formattedValue}
+      </span>
+    </span>
+  );
+}
+
 function MetaChip({
   label,
   value,
@@ -464,13 +581,11 @@ function MetaChip({
   value: HierarchyFieldValue;
 }) {
   return (
-    <div className="rounded-md border border-slate-200 bg-white px-3 py-2 dark:border-zinc-800 dark:bg-zinc-950">
-      <p className="text-xs font-semibold uppercase tracking-wide text-[#7C8886] dark:text-zinc-500">
+    <div className="min-w-0 rounded-md border border-slate-200 bg-white px-2 py-1.5 dark:border-zinc-800 dark:bg-zinc-950">
+      <p className="truncate text-[0.68rem] font-semibold uppercase tracking-wide text-[#7C8886] dark:text-zinc-500">
         {label}
       </p>
-      <p className="mt-1 truncate text-sm font-semibold text-slate-800 dark:text-zinc-100">
-        {formatValue(value)}
-      </p>
+      <TruncatedValue value={value} />
     </div>
   );
 }
@@ -511,10 +626,10 @@ function StatePanel({
   );
 }
 
-function prepareHierarchy<TFieldKey extends string>(
-  nodes: HierarchyNode<TFieldKey>[],
+function prepareHierarchy<TFieldKey extends string, TSubInfoKey extends string>(
+  nodes: HierarchyNode<TFieldKey, TSubInfoKey>[],
 ) {
-  const nodeById = new Map<string, PreparedNode<TFieldKey>>();
+  const nodeById = new Map<string, PreparedNode<TFieldKey, TSubInfoKey>>();
 
   nodes.forEach((node) => {
     nodeById.set(node.id, {
@@ -527,7 +642,7 @@ function prepareHierarchy<TFieldKey extends string>(
     });
   });
 
-  const roots: PreparedNode<TFieldKey>[] = [];
+  const roots: PreparedNode<TFieldKey, TSubInfoKey>[] = [];
 
   nodeById.forEach((node) => {
     const parent = node.parentId ? nodeById.get(node.parentId) : undefined;
@@ -547,8 +662,8 @@ function prepareHierarchy<TFieldKey extends string>(
   return { roots, nodeById };
 }
 
-function applyNodeMetadata<TFieldKey extends string>(
-  node: PreparedNode<TFieldKey>,
+function applyNodeMetadata<TFieldKey extends string, TSubInfoKey extends string>(
+  node: PreparedNode<TFieldKey, TSubInfoKey>,
   depth: number,
   rootId: string,
   path: string[],
@@ -562,17 +677,17 @@ function applyNodeMetadata<TFieldKey extends string>(
   );
 }
 
-function orderNodes<TFieldKey extends string>(
-  roots: PreparedNode<TFieldKey>[],
+function orderNodes<TFieldKey extends string, TSubInfoKey extends string>(
+  roots: PreparedNode<TFieldKey, TSubInfoKey>[],
   sortMode: HierarchySortMode,
 ) {
   return sortMode === "level" ? orderByLevel(roots) : orderByBranch(roots);
 }
 
-function orderByLevel<TFieldKey extends string>(
-  roots: PreparedNode<TFieldKey>[],
+function orderByLevel<TFieldKey extends string, TSubInfoKey extends string>(
+  roots: PreparedNode<TFieldKey, TSubInfoKey>[],
 ) {
-  const ordered: PreparedNode<TFieldKey>[] = [];
+  const ordered: PreparedNode<TFieldKey, TSubInfoKey>[] = [];
   const queue = [...roots];
 
   while (queue.length > 0) {
@@ -589,12 +704,12 @@ function orderByLevel<TFieldKey extends string>(
   return ordered;
 }
 
-function orderByBranch<TFieldKey extends string>(
-  roots: PreparedNode<TFieldKey>[],
+function orderByBranch<TFieldKey extends string, TSubInfoKey extends string>(
+  roots: PreparedNode<TFieldKey, TSubInfoKey>[],
 ) {
-  const ordered: PreparedNode<TFieldKey>[] = [];
+  const ordered: PreparedNode<TFieldKey, TSubInfoKey>[] = [];
 
-  function visit(node: PreparedNode<TFieldKey>) {
+  function visit(node: PreparedNode<TFieldKey, TSubInfoKey>) {
     ordered.push(node);
     node.children.forEach(visit);
   }
@@ -603,33 +718,35 @@ function orderByBranch<TFieldKey extends string>(
   return ordered;
 }
 
-function assignNodeColors<TFieldKey extends string>(
-  roots: PreparedNode<TFieldKey>[],
+function assignNodeColors<TFieldKey extends string, TSubInfoKey extends string>(
+  roots: PreparedNode<TFieldKey, TSubInfoKey>[],
 ) {
   orderByBranch(roots).forEach((node, index) => {
     node.color = getNodeColor(index);
   });
 }
 
-function compareByTitle<TFieldKey extends string>(
-  left: PreparedNode<TFieldKey>,
-  right: PreparedNode<TFieldKey>,
+function compareByTitle<TFieldKey extends string, TSubInfoKey extends string>(
+  left: PreparedNode<TFieldKey, TSubInfoKey>,
+  right: PreparedNode<TFieldKey, TSubInfoKey>,
 ) {
   return left.title.localeCompare(right.title);
 }
 
 function getNodeColor(index: number) {
-  if (index < accentColors.length) {
-    return accentColors[index];
+  const paletteColor = accentColors[index];
+
+  if (paletteColor) {
+    return paletteColor;
   }
 
   const hue = (index * 137.508) % 360;
   return `hsl(${hue.toFixed(1)} 76% 38%)`;
 }
 
-function getMountedToColor<TFieldKey extends string>(
-  node: PreparedNode<TFieldKey>,
-  nodeById: Map<string, PreparedNode<TFieldKey>>,
+function getMountedToColor<TFieldKey extends string, TSubInfoKey extends string>(
+  node: PreparedNode<TFieldKey, TSubInfoKey>,
+  nodeById: Map<string, PreparedNode<TFieldKey, TSubInfoKey>>,
 ) {
   if (!node.parentId) {
     return node.color;
