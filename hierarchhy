@@ -3,14 +3,25 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 
-export type HierarchyFieldValue = string | number | null | undefined;
+export type HierarchyFieldValue = string | number | boolean | null | undefined;
 
 export type HierarchyFieldDefinition = {
   key: string;
   label: string;
 };
 
-export type HierarchyNode = {
+export type HierarchyKeyMap<TItem extends object> = {
+  id: keyof TItem & string;
+  parentId?: keyof TItem & string;
+  title: keyof TItem & string;
+  subtitle?: keyof TItem & string;
+  status?: keyof TItem & string;
+  serialNumber?: keyof TItem & string;
+  partVersion?: keyof TItem & string;
+  subInfo?: keyof TItem & string;
+};
+
+export type HierarchyNode<TItem extends object = object> = {
   id: string;
   parentId?: string | null;
   partVersion?: string;
@@ -18,26 +29,27 @@ export type HierarchyNode = {
   title: string;
   subtitle?: string;
   status?: string;
-  fields: Record<string, HierarchyFieldValue>;
-  subInfo?: Record<string, HierarchyFieldValue>[];
+  item: TItem;
+  subInfo: object[];
 };
 
 export type HierarchySortMode = "level" | "branch";
 export type HierarchyViewMode = "matrix" | "stack";
 
-type PreparedNode = HierarchyNode & {
-  children: PreparedNode[];
+type PreparedNode<TItem extends object = object> = HierarchyNode<TItem> & {
+  children: PreparedNode<TItem>[];
   color: string;
   depth: number;
   rootId: string;
   path: string[];
 };
 
-export type HierarchyExplorerProps = {
+export type HierarchyExplorerProps<TItem extends object> = {
   title?: string;
   description?: string;
   className?: string;
-  nodes: HierarchyNode[];
+  data: TItem[];
+  hierarchy: HierarchyKeyMap<TItem>;
   fields: HierarchyFieldDefinition[];
   subInfoFields?: HierarchyFieldDefinition[];
   isLoading?: boolean;
@@ -47,8 +59,8 @@ export type HierarchyExplorerProps = {
   initialSortMode?: HierarchySortMode;
   initialViewMode?: HierarchyViewMode;
   selectedNodeId?: string;
-  buildHref?: (node: HierarchyNode) => string;
-  onNodeSelect?: (node: HierarchyNode) => void;
+  buildHref?: (item: TItem, node: HierarchyNode<TItem>) => string;
+  onNodeSelect?: (item: TItem, node: HierarchyNode<TItem>) => void;
 };
 
 const accentColors = [
@@ -70,11 +82,12 @@ const accentColors = [
   "#526500",
 ];
 
-export function HierarchyExplorer({
+export function HierarchyExplorer<TItem extends object>({
   title = "Hierarchy explorer",
   description = "Review hierarchical records by level or by full branch.",
   className = "",
-  nodes,
+  data,
+  hierarchy,
   fields,
   subInfoFields = [],
   isLoading = false,
@@ -84,16 +97,19 @@ export function HierarchyExplorer({
   initialSortMode = "level",
   initialViewMode = "matrix",
   selectedNodeId,
-  buildHref = (node) => `/${node.id}`,
+  buildHref = (_item, node) => `/${node.id}`,
   onNodeSelect,
-}: HierarchyExplorerProps) {
+}: HierarchyExplorerProps<TItem>) {
   const [sortMode, setSortMode] = useState<HierarchySortMode>(initialSortMode);
   const [viewMode, setViewMode] = useState<HierarchyViewMode>(initialViewMode);
   const [internalSelectedNodeId, setInternalSelectedNodeId] = useState<
     string | undefined
   >(selectedNodeId);
 
-  const preparedHierarchy = useMemo(() => prepareHierarchy(nodes), [nodes]);
+  const preparedHierarchy = useMemo(
+    () => prepareHierarchy(data, hierarchy),
+    [data, hierarchy],
+  );
   const orderedNodes = useMemo(
     () => orderNodes(preparedHierarchy.roots, sortMode),
     [preparedHierarchy.roots, sortMode],
@@ -107,15 +123,15 @@ export function HierarchyExplorer({
   const activePath =
     activeNode?.path
       .map((id) => preparedHierarchy.nodeById.get(id))
-      .filter((node): node is PreparedNode => Boolean(node)) ?? [];
+      .filter((node): node is PreparedNode<TItem> => Boolean(node)) ?? [];
 
-  function selectNode(node: PreparedNode) {
+  function selectNode(node: PreparedNode<TItem>) {
     if (isSubmitting) {
       return;
     }
 
     setInternalSelectedNodeId(node.id);
-    onNodeSelect?.(node);
+    onNodeSelect?.(node.item, node);
   }
 
   return (
@@ -199,7 +215,7 @@ export function HierarchyExplorer({
   );
 }
 
-function MatrixView({
+function MatrixView<TItem extends object>({
   nodes,
   fields,
   subInfoFields,
@@ -209,14 +225,14 @@ function MatrixView({
   isSubmitting,
   onSelect,
 }: {
-  nodes: PreparedNode[];
+  nodes: PreparedNode<TItem>[];
   fields: HierarchyFieldDefinition[];
   subInfoFields: HierarchyFieldDefinition[];
-  activeNode: PreparedNode | undefined;
-  nodeById: Map<string, PreparedNode>;
-  buildHref: (node: HierarchyNode) => string;
+  activeNode: PreparedNode<TItem> | undefined;
+  nodeById: Map<string, PreparedNode<TItem>>;
+  buildHref: (item: TItem, node: HierarchyNode<TItem>) => string;
   isSubmitting: boolean;
-  onSelect: (node: PreparedNode) => void;
+  onSelect: (node: PreparedNode<TItem>) => void;
 }) {
   const visibleFields = fields.slice(0, 5);
 
@@ -256,7 +272,7 @@ function MatrixView({
                     />
                     <span className="min-w-0">
                       <Link
-                        href={buildHref(node)}
+                        href={buildHref(node.item, node)}
                         aria-disabled={isSubmitting}
                         className={`block truncate text-sm font-semibold text-slate-950 underline-offset-4 hover:underline dark:text-zinc-50 ${
                           isSubmitting ? "pointer-events-none" : ""
@@ -298,14 +314,16 @@ function MatrixView({
                           className="h-2.5 w-2.5 shrink-0 rounded-full"
                           style={{ backgroundColor: mountedToColor }}
                         />
-                        <TruncatedValue value={node.fields[field.key]} />
+                        <TruncatedValue
+                          value={getFieldValue(node.item, field.key)}
+                        />
                       </dd>
                     </div>
                   ))}
                 </dl>
                 <SubInfoCards
                   fields={subInfoFields}
-                  items={node.subInfo ?? []}
+                  items={node.subInfo}
                 />
               </article>
             );
@@ -316,7 +334,7 @@ function MatrixView({
   );
 }
 
-function StackView({
+function StackView<TItem extends object>({
   nodes,
   fields,
   subInfoFields,
@@ -327,15 +345,15 @@ function StackView({
   isSubmitting,
   onSelect,
 }: {
-  nodes: PreparedNode[];
+  nodes: PreparedNode<TItem>[];
   fields: HierarchyFieldDefinition[];
   subInfoFields: HierarchyFieldDefinition[];
-  activeNode: PreparedNode | undefined;
-  activePath: PreparedNode[];
-  nodeById: Map<string, PreparedNode>;
-  buildHref: (node: HierarchyNode) => string;
+  activeNode: PreparedNode<TItem> | undefined;
+  activePath: PreparedNode<TItem>[];
+  nodeById: Map<string, PreparedNode<TItem>>;
+  buildHref: (item: TItem, node: HierarchyNode<TItem>) => string;
   isSubmitting: boolean;
-  onSelect: (node: PreparedNode) => void;
+  onSelect: (node: PreparedNode<TItem>) => void;
 }) {
   const visibleFields = fields.slice(0, 5);
 
@@ -376,7 +394,7 @@ function StackView({
                     style={{ borderColor: nodeColor }}
                   >
                     <Link
-                      href={buildHref(node)}
+                      href={buildHref(node.item, node)}
                       aria-disabled={isSubmitting}
                       className={`block truncate text-sm font-semibold text-slate-950 underline-offset-4 hover:underline dark:text-zinc-50 ${
                         isSubmitting ? "pointer-events-none" : ""
@@ -411,7 +429,7 @@ function StackView({
                         <TruncatedValue
                           value={
                             visibleFields[0]
-                              ? node.fields[visibleFields[0].key]
+                              ? getFieldValue(node.item, visibleFields[0].key)
                               : node.parentId
                           }
                         />
@@ -419,7 +437,7 @@ function StackView({
                     </div>
                     <SubInfoCards
                       fields={subInfoFields}
-                      items={node.subInfo ?? []}
+                      items={node.subInfo}
                     />
                   </div>
                 </div>
@@ -500,7 +518,7 @@ function SubInfoCards({
   items,
 }: {
   fields: HierarchyFieldDefinition[];
-  items: Record<string, HierarchyFieldValue>[];
+  items: object[];
 }) {
   if (fields.length === 0 || items.length === 0) {
     return null;
@@ -534,7 +552,7 @@ function SubInfoCards({
                   <p className="truncate text-[0.65rem] font-semibold uppercase tracking-wide text-slate-500 dark:text-zinc-500">
                     {field.label}
                   </p>
-                  <TruncatedValue value={item[field.key]} />
+                  <TruncatedValue value={getFieldValue(item, field.key)} />
                 </div>
               ))}
             </div>
@@ -613,10 +631,55 @@ function StatePanel({
   );
 }
 
-function prepareHierarchy(nodes: HierarchyNode[]) {
-  const nodeById = new Map<string, PreparedNode>();
+function prepareHierarchy<TItem extends object>(
+  data: TItem[],
+  hierarchy: HierarchyKeyMap<TItem>,
+) {
+  const nodeById = new Map<string, PreparedNode<TItem>>();
 
-  nodes.forEach((node) => {
+  data.forEach((item) => {
+    const id = readString(item, hierarchy.id);
+
+    if (!id) {
+      return;
+    }
+
+    const node: HierarchyNode<TItem> = {
+      id,
+      item,
+      parentId: hierarchy.parentId
+        ? readNullableString(item, hierarchy.parentId)
+        : null,
+      subInfo: hierarchy.subInfo ? readObjectArray(item, hierarchy.subInfo) : [],
+      title: readString(item, hierarchy.title) ?? id,
+    };
+    const partVersion = hierarchy.partVersion
+      ? readString(item, hierarchy.partVersion)
+      : undefined;
+    const serialNumber = hierarchy.serialNumber
+      ? readString(item, hierarchy.serialNumber)
+      : undefined;
+    const subtitle = hierarchy.subtitle
+      ? readString(item, hierarchy.subtitle)
+      : id;
+    const status = hierarchy.status ? readString(item, hierarchy.status) : undefined;
+
+    if (partVersion) {
+      node.partVersion = partVersion;
+    }
+
+    if (serialNumber) {
+      node.serialNumber = serialNumber;
+    }
+
+    if (subtitle) {
+      node.subtitle = subtitle;
+    }
+
+    if (status) {
+      node.status = status;
+    }
+
     nodeById.set(node.id, {
       ...node,
       children: [],
@@ -627,7 +690,7 @@ function prepareHierarchy(nodes: HierarchyNode[]) {
     });
   });
 
-  const roots: PreparedNode[] = [];
+  const roots: PreparedNode<TItem>[] = [];
 
   nodeById.forEach((node) => {
     const parent = node.parentId ? nodeById.get(node.parentId) : undefined;
@@ -647,8 +710,8 @@ function prepareHierarchy(nodes: HierarchyNode[]) {
   return { roots, nodeById };
 }
 
-function applyNodeMetadata(
-  node: PreparedNode,
+function applyNodeMetadata<TItem extends object>(
+  node: PreparedNode<TItem>,
   depth: number,
   rootId: string,
   path: string[],
@@ -662,15 +725,15 @@ function applyNodeMetadata(
   );
 }
 
-function orderNodes(
-  roots: PreparedNode[],
+function orderNodes<TItem extends object>(
+  roots: PreparedNode<TItem>[],
   sortMode: HierarchySortMode,
 ) {
   return sortMode === "level" ? orderByLevel(roots) : orderByBranch(roots);
 }
 
-function orderByLevel(roots: PreparedNode[]) {
-  const ordered: PreparedNode[] = [];
+function orderByLevel<TItem extends object>(roots: PreparedNode<TItem>[]) {
+  const ordered: PreparedNode<TItem>[] = [];
   const queue = [...roots];
 
   while (queue.length > 0) {
@@ -687,10 +750,10 @@ function orderByLevel(roots: PreparedNode[]) {
   return ordered;
 }
 
-function orderByBranch(roots: PreparedNode[]) {
-  const ordered: PreparedNode[] = [];
+function orderByBranch<TItem extends object>(roots: PreparedNode<TItem>[]) {
+  const ordered: PreparedNode<TItem>[] = [];
 
-  function visit(node: PreparedNode) {
+  function visit(node: PreparedNode<TItem>) {
     ordered.push(node);
     node.children.forEach(visit);
   }
@@ -699,13 +762,16 @@ function orderByBranch(roots: PreparedNode[]) {
   return ordered;
 }
 
-function assignNodeColors(roots: PreparedNode[]) {
+function assignNodeColors<TItem extends object>(roots: PreparedNode<TItem>[]) {
   orderByBranch(roots).forEach((node, index) => {
     node.color = getNodeColor(index);
   });
 }
 
-function compareByTitle(left: PreparedNode, right: PreparedNode) {
+function compareByTitle<TItem extends object>(
+  left: PreparedNode<TItem>,
+  right: PreparedNode<TItem>,
+) {
   return left.title.localeCompare(right.title);
 }
 
@@ -720,15 +786,72 @@ function getNodeColor(index: number) {
   return `hsl(${hue.toFixed(1)} 76% 38%)`;
 }
 
-function getMountedToColor(
-  node: PreparedNode,
-  nodeById: Map<string, PreparedNode>,
+function getMountedToColor<TItem extends object>(
+  node: PreparedNode<TItem>,
+  nodeById: Map<string, PreparedNode<TItem>>,
 ) {
   if (!node.parentId) {
     return node.color;
   }
 
   return nodeById.get(node.parentId)?.color ?? node.color;
+}
+
+function getFieldValue(item: object, key: string): HierarchyFieldValue {
+  const value = readUnknown(item, key);
+
+  if (
+    typeof value === "string" ||
+    typeof value === "number" ||
+    typeof value === "boolean" ||
+    value === null ||
+    value === undefined
+  ) {
+    return value;
+  }
+
+  return String(value);
+}
+
+function readString<TItem extends object>(
+  item: TItem,
+  key: keyof TItem & string,
+) {
+  const value = readUnknown(item, key);
+
+  if (value === null || value === undefined || value === "") {
+    return undefined;
+  }
+
+  return String(value);
+}
+
+function readNullableString<TItem extends object>(
+  item: TItem,
+  key: keyof TItem & string,
+) {
+  return readString(item, key) ?? null;
+}
+
+function readObjectArray<TItem extends object>(
+  item: TItem,
+  key: keyof TItem & string,
+) {
+  const value = readUnknown(item, key);
+
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value.filter(isPlainObject);
+}
+
+function readUnknown(item: object, key: string) {
+  return (item as Record<string, unknown>)[key];
+}
+
+function isPlainObject(value: unknown): value is object {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }
 
 function formatValue(value: HierarchyFieldValue) {
