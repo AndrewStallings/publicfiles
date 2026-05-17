@@ -1,233 +1,205 @@
-const SearchBox = ({
-  placeholder = "Search records…",
-  minChars = 2,
-  debounceMs = 600,
-  onPick,
-}: SearchBoxProps) => {
-  const [text, setText] = useState("");
-  const debounced = useDebouncedValue(text, debounceMs);
+import React, { useEffect, useRef, useState } from "react";
 
-  const [loading, setLoading] = useState(false);
+type SearchItem = {
+  id: string | number;
+  label: string;
+};
+
+type AsyncSearchComboBoxProps<T extends SearchItem> = {
+  search: (query: string) => Promise<T[]>;
+  onSelect?: (item: T) => void;
+  placeholder?: string;
+  minChars?: number;
+};
+
+export const AsyncSearchComboBox = <T extends SearchItem>({
+  search,
+  onSelect,
+  placeholder = "Search...",
+  minChars = 2,
+}: AsyncSearchComboBoxProps<T>) => {
+  const [query, setQuery] = useState("");
+  const [results, setResults] = useState<T[]>([]);
+  const [isOpen, setIsOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [highlightedIndex, setHighlightedIndex] = useState(-1);
   const [error, setError] = useState<string | null>(null);
-  const [results, setResults] = useState<Item[]>([]);
-  const [open, setOpen] = useState(false);
-  const [activeIndex, setActiveIndex] = useState(0);
 
   const requestIdRef = useRef(0);
-  const abortRef = useRef<AbortController | null>(null);
-  const cacheRef = useRef(new Map<string, Item[]>());
-  const inputRef = useRef<HTMLInputElement | null>(null);
+  const debounceRef = useRef<number | null>(null);
+  const containerRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
-    const q = debounced.trim();
-    const cacheKey = q.toLowerCase();
+    if (debounceRef.current) {
+      window.clearTimeout(debounceRef.current);
+    }
 
-    if (q.length < minChars) {
-      abortRef.current?.abort();
-      setLoading(false);
+    const trimmed = query.trim();
+
+    if (trimmed.length < minChars) {
+      setIsLoading(false);
       setError(null);
-      setOpen(q.length > 0);
-      setActiveIndex(0);
-
-      if (!q) {
-        setResults([]);
-      }
-
+      setResults([]);
+      setHighlightedIndex(-1);
       return;
     }
 
-    const cached = cacheRef.current.get(cacheKey);
-
-    if (cached) {
-      abortRef.current?.abort();
-      setResults(cached);
-      setLoading(false);
-      setError(null);
-      setOpen(true);
-      setActiveIndex(0);
-      return;
-    }
-
-    abortRef.current?.abort();
-
-    const controller = new AbortController();
-    abortRef.current = controller;
-
-    const requestId = requestIdRef.current + 1;
-    requestIdRef.current = requestId;
-
-    setLoading(true);
+    setIsLoading(true);
     setError(null);
-    setOpen(true);
 
-    const runSearch = async () => {
+    debounceRef.current = window.setTimeout(async () => {
+      const requestId = ++requestIdRef.current;
+
       try {
-        const res = await searchRecordsFromDb(q, controller.signal);
+        const data = await search(trimmed);
 
+        // Ignore old slow responses
         if (requestId !== requestIdRef.current) return;
 
-        cacheRef.current.set(cacheKey, res);
-        setResults(res);
-        setActiveIndex(0);
-      } catch (e: any) {
-        if (e?.name === "AbortError") return;
+        setResults(data.slice(0, 100));
+        setHighlightedIndex(data.length > 0 ? 0 : -1);
+        setIsOpen(true);
+      } catch {
         if (requestId !== requestIdRef.current) return;
 
-        setError("Search failed");
+        setError("Search failed. Try again.");
+        setResults([]);
+        setHighlightedIndex(-1);
       } finally {
         if (requestId === requestIdRef.current) {
-          setLoading(false);
+          setIsLoading(false);
         }
+      }
+    }, 350);
+
+    return () => {
+      if (debounceRef.current) {
+        window.clearTimeout(debounceRef.current);
+      }
+    };
+  }, [query, search, minChars]);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (!containerRef.current?.contains(event.target as Node)) {
+        setIsOpen(false);
       }
     };
 
-    void runSearch();
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
-    return () => controller.abort();
-  }, [debounced, minChars]);
-
-  const hint = useMemo(() => {
-    const q = text.trim();
-
-    if (!q) return "Type to search";
-    if (q.length < minChars) return `Keep typing… (${minChars - q.length} more)`;
-    if (loading) return results.length ? "Updating results…" : "Searching…";
-    if (error) return error;
-    if (!results.length) return "No matches";
-
-    return `${results.length} match${results.length === 1 ? "" : "es"}`;
-  }, [text, minChars, loading, error, results.length]);
-
-  const pick = (item: Item) => {
-    onPick(item);
-    setText("");
-    setResults([]);
-    setOpen(false);
-    setActiveIndex(0);
-
-    requestAnimationFrame(() => inputRef.current?.focus());
+  const selectItem = (item: T) => {
+    setQuery(item.label);
+    setIsOpen(false);
+    setHighlightedIndex(-1);
+    onSelect?.(item);
   };
 
+  const handleKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
+    if (!isOpen && event.key !== "Escape") {
+      setIsOpen(true);
+    }
+
+    if (event.key === "ArrowDown") {
+      event.preventDefault();
+      setHighlightedIndex((current) =>
+        results.length === 0 ? -1 : Math.min(current + 1, results.length - 1)
+      );
+    }
+
+    if (event.key === "ArrowUp") {
+      event.preventDefault();
+      setHighlightedIndex((current) =>
+        results.length === 0 ? -1 : Math.max(current - 1, 0)
+      );
+    }
+
+    if (event.key === "Enter") {
+      event.preventDefault();
+
+      if (highlightedIndex >= 0 && results[highlightedIndex]) {
+        selectItem(results[highlightedIndex]);
+      }
+    }
+
+    if (event.key === "Escape") {
+      setIsOpen(false);
+      setHighlightedIndex(-1);
+    }
+  };
+
+  const showDropdown =
+    isOpen && (results.length > 0 || isLoading || error || query.trim().length >= minChars);
+
   return (
-    <div className="relative">
-      <div className="group relative rounded-2xl border border-black/10 bg-white/70 shadow-sm backdrop-blur transition focus-within:border-black/20 focus-within:bg-white">
-        <div className="pointer-events-none absolute inset-0 opacity-0 transition group-focus-within:opacity-100">
-          <div className="absolute -top-16 left-10 h-40 w-40 rounded-full bg-violet-300/20 blur-3xl" />
-          <div className="absolute -bottom-16 right-10 h-40 w-40 rounded-full bg-amber-300/20 blur-3xl" />
-        </div>
+    <div ref={containerRef} className="relative w-full max-w-md">
+      <div className="relative">
+        <input
+          value={query}
+          onChange={(event) => {
+            setQuery(event.target.value);
+            setIsOpen(true);
+          }}
+          onFocus={() => setIsOpen(true)}
+          onKeyDown={handleKeyDown}
+          placeholder={placeholder}
+          className="w-full rounded-xl border border-gray-300 bg-white px-4 py-2 pr-10 text-sm shadow-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
+        />
 
-        <div className="relative flex items-center gap-3 px-3 py-2">
-          <span className="select-none text-gray-500">⌘</span>
-
-          <input
-            ref={inputRef}
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            onFocus={() => setOpen(true)}
-            onBlur={() => {
-              setTimeout(() => setOpen(false), 120);
-            }}
-            onKeyDown={(e) => {
-              if (!open) return;
-
-              if (e.key === "Escape") {
-                setOpen(false);
-                return;
-              }
-
-              if (e.key === "ArrowDown") {
-                e.preventDefault();
-                setActiveIndex((i) => Math.min(i + 1, Math.max(0, results.length - 1)));
-              }
-
-              if (e.key === "ArrowUp") {
-                e.preventDefault();
-                setActiveIndex((i) => Math.max(i - 1, 0));
-              }
-
-              if (e.key === "Enter") {
-                const item = results[activeIndex];
-
-                if (item) {
-                  pick(item);
-                }
-              }
-            }}
-            placeholder={placeholder}
-            className="w-full bg-transparent py-1 text-sm text-gray-900 outline-none placeholder:text-gray-500"
-            autoComplete="off"
-          />
-
-          <div className="flex items-center gap-2">
-            {loading ? (
-              <Spinner />
-            ) : (
-              <span className="text-xs text-gray-500 tabular-nums">{hint}</span>
-            )}
-          </div>
-        </div>
+        {isLoading && (
+          <div className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin rounded-full border-2 border-gray-300 border-t-blue-600" />
+        )}
       </div>
 
-      {open && (text.trim().length > 0 || results.length > 0) && (
-        <div className="absolute z-10 mt-2 w-full overflow-hidden rounded-2xl border border-black/10 bg-white/80 shadow-lg backdrop-blur">
-          <div className="max-h-80 overflow-auto p-2">
-            {results.length === 0 ? (
-              <div className="rounded-xl border border-black/10 bg-white/60 p-3 text-sm text-gray-700">
-                <div className="font-semibold">{hint}</div>
-                <div className="mt-1 text-xs text-gray-500">
-                  Try ID, owner, region, or any field value.
-                </div>
-              </div>
-            ) : (
-              <div className="space-y-1">
-                {results.map((r, idx) => {
-                  const isActive = idx === activeIndex;
-                  const preview = r.fields
-                    .slice(0, 2)
-                    .map((f) => `${f.label}: ${f.value}`)
-                    .join(" • ");
+      {showDropdown && (
+        <div className="absolute z-50 mt-2 max-h-72 w-full overflow-hidden rounded-xl border border-gray-200 bg-white shadow-lg">
+          {error && (
+            <div className="px-4 py-3 text-sm text-red-600">
+              {error}
+            </div>
+          )}
 
-                  return (
-                    <button
-                      key={r.id}
-                      type="button"
-                      onMouseEnter={() => setActiveIndex(idx)}
-                      onMouseDown={(e) => e.preventDefault()}
-                      onClick={() => pick(r)}
-                      className={`w-full rounded-xl border px-3 py-2 text-left transition ${
-                        isActive
-                          ? "border-black/10 bg-gradient-to-r from-violet-50 via-white to-amber-50 shadow-sm"
-                          : "border-transparent hover:border-black/10 hover:bg-white/60"
-                      }`}
-                    >
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="min-w-0">
-                          <div className="truncate text-sm font-semibold text-gray-900">
-                            {r.title}
-                          </div>
+          {!error && results.length === 0 && isLoading && (
+            <div className="px-4 py-3 text-sm text-gray-500">
+              Searching...
+            </div>
+          )}
 
-                          <div className="mt-0.5 truncate text-xs text-gray-600">
-                            {r.subtitle ?? ""}
-                          </div>
+          {!error && results.length === 0 && !isLoading && (
+            <div className="px-4 py-3 text-sm text-gray-500">
+              No results found.
+            </div>
+          )}
 
-                          <div className="mt-1 truncate text-xs text-gray-500">
-                            {preview}
-                          </div>
-                        </div>
+          {!error && results.length > 0 && (
+            <ul className="max-h-72 overflow-y-auto py-1">
+              {results.map((item, index) => (
+                <li key={item.id}>
+                  <button
+                    type="button"
+                    onMouseDown={(event) => event.preventDefault()}
+                    onClick={() => selectItem(item)}
+                    onMouseEnter={() => setHighlightedIndex(index)}
+                    className={`w-full px-4 py-2 text-left text-sm transition ${
+                      highlightedIndex === index
+                        ? "bg-blue-50 text-blue-700"
+                        : "text-gray-800 hover:bg-gray-50"
+                    }`}
+                  >
+                    {item.label}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
 
-                        <Chip>#{r.id}</Chip>
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-
-          <div className="flex items-center justify-between border-t border-black/10 bg-white/60 px-3 py-2 text-xs text-gray-600">
-            <span>↑↓ to navigate • Enter to pick • Esc to close</span>
-            <span className="tabular-nums">debounce: {debounceMs}ms</span>
-          </div>
+          {results.length >= 100 && (
+            <div className="border-t border-gray-100 px-4 py-2 text-xs text-gray-500">
+              Showing first 100 results. Try a more specific search.
+            </div>
+          )}
         </div>
       )}
     </div>
