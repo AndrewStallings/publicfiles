@@ -457,3 +457,127 @@ export default function ListCardDemo() {
     </div>
   );
 }
+
+
+const SearchBox = ({
+  placeholder = "Search records…",
+  minChars = 2,
+  debounceMs = 600,
+  onPick,
+}: SearchBoxProps) => {
+  const [text, setText] = useState("");
+  const debounced = useDebouncedValue(text, debounceMs);
+
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [results, setResults] = useState<Item[]>([]);
+  const [open, setOpen] = useState(false);
+  const [activeIndex, setActiveIndex] = useState(0);
+
+  const requestIdRef = useRef(0);
+  const abortRef = useRef<AbortController | null>(null);
+  const cacheRef = useRef(new Map<string, Item[]>());
+  const inputRef = useRef<HTMLInputElement | null>(null);
+
+  useEffect(() => {
+    const q = debounced.trim();
+    const cacheKey = q.toLowerCase();
+
+    if (q.length < minChars) {
+      abortRef.current?.abort();
+      setLoading(false);
+      setError(null);
+      setOpen(q.length > 0);
+      setActiveIndex(0);
+
+      // optional: clear only when totally empty
+      if (!q) setResults([]);
+
+      return;
+    }
+
+    const cached = cacheRef.current.get(cacheKey);
+    if (cached) {
+      abortRef.current?.abort();
+      setResults(cached);
+      setLoading(false);
+      setError(null);
+      setOpen(true);
+      setActiveIndex(0);
+      return;
+    }
+
+    abortRef.current?.abort();
+
+    const controller = new AbortController();
+    abortRef.current = controller;
+
+    const requestId = requestIdRef.current + 1;
+    requestIdRef.current = requestId;
+
+    setLoading(true);
+    setError(null);
+    setOpen(true);
+
+    // IMPORTANT:
+    // Do not clear results here.
+    // Keep old results visible while the slow search runs.
+
+    const runSearch = async () => {
+      try {
+        const res = await searchRecordsFromDb(q, controller.signal);
+
+        // Prevent stale slow searches from overwriting newer results
+        if (requestId !== requestIdRef.current) return;
+
+        cacheRef.current.set(cacheKey, res);
+        setResults(res);
+        setActiveIndex(0);
+      } catch (e: any) {
+        if (e?.name === "AbortError") return;
+        if (requestId !== requestIdRef.current) return;
+
+        setError("Search failed");
+
+        // Optional: do not clear results on error either
+        // setResults([]);
+      } finally {
+        if (requestId === requestIdRef.current) {
+          setLoading(false);
+        }
+      }
+    };
+
+    void runSearch();
+
+    return () => controller.abort();
+  }, [debounced, minChars]);
+
+  const pick = (item: Item) => {
+    onPick(item);
+    setText("");
+    setResults([]);
+    setOpen(false);
+    setActiveIndex(0);
+
+    requestAnimationFrame(() => inputRef.current?.focus());
+  };
+
+  const hint = useMemo(() => {
+    const q = text.trim();
+
+    if (!q) return "Type to search";
+    if (q.length < minChars) return `Keep typing… (${minChars - q.length} more)`;
+    if (loading) return results.length ? "Updating results…" : "Searching…";
+    if (error) return error;
+    if (!results.length) return "No matches";
+
+    return `${results.length} match${results.length === 1 ? "" : "es"}`;
+  }, [text, minChars, loading, error, results.length]);
+
+  return (
+    <div className="relative">
+      {/* keep your existing JSX here */}
+    </div>
+  );
+};
