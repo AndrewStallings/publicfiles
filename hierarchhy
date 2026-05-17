@@ -61,7 +61,7 @@ export type HierarchyExplorerProps<TItem extends object> = {
   initialSortMode?: HierarchySortMode;
   initialViewMode?: HierarchyViewMode;
   selectedNodeId?: string;
-  buildHref?: (item: TItem, node: HierarchyNode<TItem>) => string;
+  hrefBase?: string;
   onNodeSelect?: (item: TItem, node: HierarchyNode<TItem>) => void;
 };
 
@@ -99,7 +99,7 @@ export function HierarchyExplorer<TItem extends object>({
   initialSortMode = "level",
   initialViewMode = "matrix",
   selectedNodeId,
-  buildHref = (_item, node) => `/${node.id}`,
+  hrefBase = "",
   onNodeSelect,
 }: HierarchyExplorerProps<TItem>) {
   const [sortMode, setSortMode] = useState<HierarchySortMode>(initialSortMode);
@@ -138,7 +138,7 @@ export function HierarchyExplorer<TItem extends object>({
 
   return (
     <section
-      className={`w-full min-w-0 text-slate-950 dark:text-zinc-50 ${className}`}
+      className={`w-full min-w-0 !text-slate-950 dark:!text-zinc-50 ${className}`}
     >
       <div className="flex w-full min-w-0 flex-col gap-5">
         <header className="flex min-w-0 flex-col gap-4 border-b border-slate-200 pb-5 dark:border-zinc-800 md:flex-row md:items-end md:justify-between">
@@ -195,7 +195,7 @@ export function HierarchyExplorer<TItem extends object>({
             subInfoFields={subInfoFields}
             activeNode={activeNode}
             parentNodeById={preparedHierarchy.parentNodeById}
-            buildHref={buildHref}
+            hrefBase={hrefBase}
             isSubmitting={isSubmitting}
             onSelect={selectNode}
           />
@@ -207,7 +207,7 @@ export function HierarchyExplorer<TItem extends object>({
             activeNode={activeNode}
             activePath={activePath}
             parentNodeById={preparedHierarchy.parentNodeById}
-            buildHref={buildHref}
+            hrefBase={hrefBase}
             isSubmitting={isSubmitting}
             onSelect={selectNode}
           />
@@ -223,7 +223,7 @@ function MatrixView<TItem extends object>({
   subInfoFields,
   activeNode,
   parentNodeById,
-  buildHref,
+  hrefBase,
   isSubmitting,
   onSelect,
 }: {
@@ -232,14 +232,14 @@ function MatrixView<TItem extends object>({
   subInfoFields: HierarchyFieldDefinition[];
   activeNode: PreparedNode<TItem> | undefined;
   parentNodeById: Map<string, PreparedNode<TItem>>;
-  buildHref: (item: TItem, node: HierarchyNode<TItem>) => string;
+  hrefBase: string;
   isSubmitting: boolean;
   onSelect: (node: PreparedNode<TItem>) => void;
 }) {
   const visibleFields = fields.slice(0, 5);
 
   return (
-    <div className="min-w-0 rounded-lg border border-slate-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-950">
+    <div className="min-w-0 rounded-lg border !border-slate-200 !bg-white shadow-sm dark:!border-zinc-800 dark:!bg-zinc-950">
       <div className="rounded-t-lg bg-[#00249C] px-4 py-3 text-sm font-semibold text-white">
         Matrix view
       </div>
@@ -256,7 +256,7 @@ function MatrixView<TItem extends object>({
                 className={`block min-w-0 rounded-lg border p-3 text-left transition focus-within:ring-2 focus-within:ring-[#5C9DAE] focus-within:ring-offset-2 focus-within:ring-offset-white dark:focus-within:ring-offset-zinc-950 ${
                   isActive
                     ? "border-[#00249C] bg-blue-50 dark:bg-blue-950/20"
-                    : "border-slate-200 bg-white hover:border-[#5C9DAE] dark:border-zinc-800 dark:bg-zinc-950 dark:hover:border-[#5C9DAE]"
+                    : "!border-slate-200 !bg-white hover:!border-[#5C9DAE] dark:!border-zinc-800 dark:!bg-zinc-950 dark:hover:!border-[#5C9DAE]"
                 } ${isSubmitting ? "opacity-60" : ""}`}
                 onClick={() => {
                   if (isSubmitting) {
@@ -274,9 +274,9 @@ function MatrixView<TItem extends object>({
                     />
                     <span className="min-w-0">
                       <Link
-                        href={buildHref(node.item, node)}
+                        href={buildNodeHref(hrefBase, node.id)}
                         aria-disabled={isSubmitting}
-                        className={`block truncate text-sm font-semibold text-slate-950 underline-offset-4 outline-none hover:underline focus-visible:underline dark:text-zinc-50 ${
+                        className={`block truncate text-sm font-semibold !text-slate-950 underline-offset-4 outline-none hover:underline focus-visible:underline dark:!text-zinc-50 ${
                           isSubmitting ? "pointer-events-none" : ""
                         }`}
                         onClick={(event) => {
@@ -306,12 +306,12 @@ function MatrixView<TItem extends object>({
                   {visibleFields.map((field) => (
                     <div
                       key={field.key}
-                      className="min-h-10 rounded-md border border-transparent bg-slate-50 px-2 py-1.5 dark:bg-zinc-900"
+                      className="min-h-10 rounded-md border !border-transparent !bg-slate-50 px-2 py-1.5 dark:!bg-zinc-900"
                     >
                       <dt className="text-[0.68rem] font-semibold uppercase tracking-wide text-[#7C8886] dark:text-zinc-500">
                         {field.label}
                       </dt>
-                      <dd className="mt-1 flex min-w-0 items-center gap-2 text-xs font-semibold text-slate-800 dark:text-zinc-100">
+                      <dd className="mt-1 flex min-w-0 items-center gap-2 text-xs font-semibold !text-slate-800 dark:!text-zinc-100">
                         <span
                           className="h-2.5 w-2.5 shrink-0 rounded-full"
                           style={{ backgroundColor: mountedToColor }}
@@ -343,7 +343,7 @@ function StackView<TItem extends object>({
   activeNode,
   activePath,
   parentNodeById,
-  buildHref,
+  hrefBase,
   isSubmitting,
   onSelect,
 }: {
@@ -353,15 +353,15 @@ function StackView<TItem extends object>({
   activeNode: PreparedNode<TItem> | undefined;
   activePath: PreparedNode<TItem>[];
   parentNodeById: Map<string, PreparedNode<TItem>>;
-  buildHref: (item: TItem, node: HierarchyNode<TItem>) => string;
+  hrefBase: string;
   isSubmitting: boolean;
   onSelect: (node: PreparedNode<TItem>) => void;
 }) {
   const visibleFields = fields.slice(0, 5);
 
   return (
-    <div className="min-w-0 rounded-lg border border-slate-200 bg-white p-4 shadow-sm dark:border-zinc-800 dark:bg-zinc-950">
-      <div className="mb-4 rounded-md bg-slate-50 p-3 dark:bg-zinc-900">
+    <div className="min-w-0 rounded-lg border !border-slate-200 !bg-white p-4 shadow-sm dark:!border-zinc-800 dark:!bg-zinc-950">
+      <div className="mb-4 rounded-md !bg-slate-50 p-3 dark:!bg-zinc-900">
         <div className="flex flex-col gap-3">
           {activePath.map((node) => {
             const nodeColor = node.color;
@@ -371,10 +371,10 @@ function StackView<TItem extends object>({
             return (
               <article
                 key={node.id}
-                className={`rounded-lg border bg-white p-3 shadow-sm transition focus-within:ring-2 focus-within:ring-[#5C9DAE] focus-within:ring-offset-2 focus-within:ring-offset-white dark:bg-zinc-950 dark:focus-within:ring-offset-zinc-950 ${
+                className={`rounded-lg border !bg-white p-3 shadow-sm transition focus-within:ring-2 focus-within:ring-[#5C9DAE] focus-within:ring-offset-2 focus-within:ring-offset-white dark:!bg-zinc-950 dark:focus-within:ring-offset-zinc-950 ${
                   isActive
                     ? "border-[#FF6D00] bg-orange-50 dark:bg-orange-950/20"
-                    : "border-slate-200 dark:border-zinc-800 dark:hover:border-[#5C9DAE]"
+                    : "!border-slate-200 dark:!border-zinc-800 dark:hover:!border-[#5C9DAE]"
                 } ${isSubmitting ? "opacity-60" : ""}`}
                 onClick={() => {
                   if (isSubmitting) {
@@ -396,9 +396,9 @@ function StackView<TItem extends object>({
                     style={{ borderColor: nodeColor }}
                   >
                     <Link
-                      href={buildHref(node.item, node)}
+                      href={buildNodeHref(hrefBase, node.id)}
                       aria-disabled={isSubmitting}
-                      className={`block truncate text-sm font-semibold text-slate-950 underline-offset-4 outline-none hover:underline focus-visible:underline dark:text-zinc-50 ${
+                      className={`block truncate text-sm font-semibold !text-slate-950 underline-offset-4 outline-none hover:underline focus-visible:underline dark:!text-zinc-50 ${
                         isSubmitting ? "pointer-events-none" : ""
                       }`}
                       onClick={(event) => {
@@ -412,18 +412,18 @@ function StackView<TItem extends object>({
                     >
                       {node.title}
                     </Link>
-                    <span className="block truncate text-xs text-slate-500 dark:text-zinc-400">
+                    <span className="block truncate text-xs !text-slate-500 dark:!text-zinc-400">
                       {node.subtitle ?? node.id}
                     </span>
                     <div className="mt-2 grid gap-2 sm:grid-cols-2">
                       <MetaChip label="Serial" value={node.serialNumber} />
                       <MetaChip label="Version" value={node.partVersion} />
                     </div>
-                    <div className="mt-2 rounded-md border border-transparent bg-slate-50 p-2 dark:bg-zinc-900">
+                    <div className="mt-2 rounded-md border !border-transparent !bg-slate-50 p-2 dark:!bg-zinc-900">
                       <p className="text-[0.68rem] font-semibold uppercase tracking-wide text-[#7C8886] dark:text-zinc-500">
                         {visibleFields[0]?.label ?? "Mounted to"}
                       </p>
-                      <p className="mt-1 flex min-w-0 items-center gap-2 text-xs font-semibold text-slate-800 dark:text-zinc-100">
+                      <p className="mt-1 flex min-w-0 items-center gap-2 text-xs font-semibold !text-slate-800 dark:!text-zinc-100">
                         <span
                           className="h-2.5 w-2.5 shrink-0 rounded-full"
                           style={{ backgroundColor: mountedToColor }}
@@ -458,7 +458,7 @@ function StackView<TItem extends object>({
             className={`min-h-16 rounded-md border px-3 py-2 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#5C9DAE] focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-zinc-950 ${
               node.id === activeNode?.id
                 ? "border-[#00249C] bg-blue-50 text-[#00249C] dark:bg-blue-950/30 dark:text-blue-200"
-                : "border-slate-200 bg-white text-slate-700 hover:border-[#5C9DAE] dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-300 dark:hover:border-[#5C9DAE]"
+                : "!border-slate-200 !bg-white !text-slate-700 hover:!border-[#5C9DAE] dark:!border-zinc-800 dark:!bg-zinc-950 dark:!text-zinc-300 dark:hover:!border-[#5C9DAE]"
             } disabled:cursor-not-allowed disabled:opacity-60`}
             onClick={() => onSelect(node)}
           >
@@ -491,10 +491,10 @@ function SegmentedControl({
 }) {
   return (
     <fieldset className="min-w-0">
-      <legend className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-zinc-500">
+      <legend className="mb-1 text-xs font-semibold uppercase tracking-wide !text-slate-500 dark:!text-zinc-500">
         {label}
       </legend>
-      <div className="flex rounded-lg border border-slate-200 bg-white p-1 shadow-sm dark:border-zinc-800 dark:bg-zinc-950">
+      <div className="flex rounded-lg border !border-slate-200 !bg-white p-1 shadow-sm dark:!border-zinc-800 dark:!bg-zinc-950">
         {options.map((option) => (
           <button
             key={option.value}
@@ -502,8 +502,8 @@ function SegmentedControl({
             disabled={isDisabled}
             className={`min-h-9 rounded-md px-3 text-sm font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#5C9DAE] focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-zinc-950 ${
               value === option.value
-                ? "bg-[#00249C] text-white"
-                : "text-slate-600 hover:bg-slate-100 dark:text-zinc-300 dark:hover:bg-zinc-900"
+                ? "!bg-[#00249C] !text-white dark:!bg-[#00249C] dark:!text-white"
+                : "!bg-transparent !text-slate-700 hover:!bg-slate-100 dark:!text-zinc-200 dark:hover:!bg-zinc-900"
             } disabled:cursor-not-allowed disabled:opacity-60`}
             onClick={() => onChange(option.value)}
           >
@@ -527,31 +527,31 @@ function SubInfoCards({
   }
 
   return (
-    <details className="group mt-3 rounded-md border border-slate-200 bg-white dark:border-zinc-800 dark:bg-zinc-950">
-      <summary className="flex cursor-pointer list-none items-center justify-between gap-3 rounded-md px-3 py-2 text-xs font-semibold text-[#00249C] outline-none transition hover:bg-slate-50 focus-visible:ring-2 focus-visible:ring-[#5C9DAE] focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:text-blue-200 dark:hover:bg-zinc-900 dark:focus-visible:ring-offset-zinc-950 [&::-webkit-details-marker]:hidden">
+    <details className="group mt-3 rounded-md border !border-slate-200 !bg-white dark:!border-zinc-800 dark:!bg-zinc-950">
+      <summary className="flex cursor-pointer list-none items-center justify-between gap-3 rounded-md px-3 py-2 text-xs font-semibold !text-[#00249C] outline-none transition hover:!bg-slate-50 focus-visible:ring-2 focus-visible:ring-[#5C9DAE] focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:!text-blue-200 dark:hover:!bg-zinc-900 dark:focus-visible:ring-offset-zinc-950 [&::-webkit-details-marker]:hidden">
         <span className="truncate">
           Sub information ({items.length}{" "}
           {items.length === 1 ? "item" : "items"})
         </span>
-        <span className="shrink-0 text-[0.68rem] text-slate-500 transition group-open:rotate-180 dark:text-zinc-400">
+        <span className="shrink-0 text-[0.68rem] !text-slate-500 transition group-open:rotate-180 dark:!text-zinc-400">
           v
         </span>
       </summary>
-      <div className="grid min-w-0 gap-2 border-t border-slate-200 p-2 dark:border-zinc-800">
+      <div className="grid min-w-0 gap-2 border-t !border-slate-200 p-2 dark:!border-zinc-800">
         {items.map((item, itemIndex) => (
           <article
             key={itemIndex}
-            className="rounded-md border border-transparent bg-slate-50 px-2 py-1.5 dark:bg-zinc-900"
+            className="rounded-md border !border-transparent !bg-slate-50 px-2 py-1.5 dark:!bg-zinc-900"
           >
             <div className="mb-1.5 flex items-center justify-between gap-2">
-              <h3 className="truncate text-xs font-semibold text-slate-800 dark:text-zinc-100">
+              <h3 className="truncate text-xs font-semibold !text-slate-800 dark:!text-zinc-100">
                 Item {itemIndex + 1}
               </h3>
             </div>
             <div className="grid min-w-0 gap-x-3 gap-y-1.5 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
               {fields.map((field) => (
                 <div key={field.key} className="min-w-0">
-                  <p className="truncate text-[0.65rem] font-semibold uppercase tracking-wide text-slate-500 dark:text-zinc-500">
+                  <p className="truncate text-[0.65rem] font-semibold uppercase tracking-wide !text-slate-500 dark:!text-zinc-500">
                     {field.label}
                   </p>
                   <TruncatedValue value={getFieldValue(item, field.key)} />
@@ -570,10 +570,10 @@ function TruncatedValue({ value }: { value: HierarchyFieldValue }) {
 
   return (
     <span className="group/value relative block min-w-0 max-w-full">
-      <span className="block truncate text-xs font-semibold leading-5 text-slate-800 dark:text-zinc-100">
+      <span className="block truncate text-xs font-semibold leading-5 !text-slate-800 dark:!text-zinc-100">
         {formattedValue}
       </span>
-      <span className="pointer-events-none absolute left-0 top-full z-30 mt-2 hidden w-[min(28rem,80vw)] rounded-lg border border-slate-200 bg-white p-3 text-xs font-medium leading-5 text-slate-800 opacity-0 shadow-xl ring-1 ring-black/5 transition group-hover/value:block group-hover/value:opacity-100 group-focus-within/value:block group-focus-within/value:opacity-100 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100 dark:ring-white/10">
+      <span className="pointer-events-none absolute left-0 top-full z-30 mt-2 hidden w-[min(28rem,80vw)] rounded-lg border !border-slate-200 !bg-white p-3 text-xs font-medium leading-5 !text-slate-800 opacity-0 shadow-xl ring-1 ring-black/5 transition group-hover/value:block group-hover/value:opacity-100 group-focus-within/value:block group-focus-within/value:opacity-100 dark:!border-zinc-700 dark:!bg-zinc-950 dark:!text-zinc-100 dark:ring-white/10">
         {formattedValue}
       </span>
     </span>
@@ -588,8 +588,8 @@ function MetaChip({
   value: HierarchyFieldValue;
 }) {
   return (
-    <div className="min-w-0 rounded-md border border-slate-200 bg-white px-2 py-1.5 dark:border-zinc-800 dark:bg-zinc-950">
-      <p className="truncate text-[0.68rem] font-semibold uppercase tracking-wide text-[#7C8886] dark:text-zinc-500">
+    <div className="min-w-0 rounded-md border !border-slate-200 !bg-white px-2 py-1.5 dark:!border-zinc-800 dark:!bg-zinc-950">
+      <p className="truncate text-[0.68rem] font-semibold uppercase tracking-wide !text-[#7C8886] dark:!text-zinc-500">
         {label}
       </p>
       <TruncatedValue value={value} />
@@ -599,11 +599,11 @@ function MetaChip({
 
 function LoadingState() {
   return (
-    <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm dark:border-zinc-800 dark:bg-zinc-950">
+    <div className="rounded-lg border !border-slate-200 !bg-white p-4 shadow-sm dark:!border-zinc-800 dark:!bg-zinc-950">
       {Array.from({ length: 6 }).map((_, index) => (
         <div
           key={index}
-          className="mb-3 h-16 animate-pulse rounded-md bg-slate-100 last:mb-0 dark:bg-zinc-900"
+          className="mb-3 h-16 animate-pulse rounded-md !bg-slate-100 last:mb-0 dark:!bg-zinc-900"
         />
       ))}
     </div>
@@ -623,8 +623,8 @@ function StatePanel({
     <div
       className={`rounded-lg border p-6 shadow-sm ${
         tone === "error"
-          ? "border-red-200 bg-red-50 text-red-950 dark:border-red-900 dark:bg-red-950/30 dark:text-red-100"
-          : "border-slate-200 bg-white text-slate-950 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-50"
+          ? "!border-red-200 !bg-red-50 !text-red-950 dark:!border-red-900 dark:!bg-red-950/30 dark:!text-red-100"
+          : "!border-slate-200 !bg-white !text-slate-950 dark:!border-zinc-800 dark:!bg-zinc-950 dark:!text-zinc-50"
       }`}
     >
       <h2 className="text-lg font-semibold">{title}</h2>
@@ -799,6 +799,14 @@ function getMountedToColor<TItem extends object>(
   parentNodeById: Map<string, PreparedNode<TItem>>,
 ) {
   return parentNodeById.get(node.id)?.color ?? node.color;
+}
+
+function buildNodeHref(hrefBase: string, id: string) {
+  if (!hrefBase) {
+    return `/${id}`;
+  }
+
+  return `${hrefBase.replace(/\/$/, "")}/${encodeURIComponent(id)}`;
 }
 
 function getFieldValue(item: object, key: string): HierarchyFieldValue {
