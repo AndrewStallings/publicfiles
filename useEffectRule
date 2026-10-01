@@ -1,0 +1,389 @@
+# React / Next.js Engineering Rules
+
+This project uses modern React (19+) and Next.js App Router.
+
+Prefer modern React and Next.js patterns over legacy React patterns.
+
+---
+
+## React Effects
+
+### useEffect is an escape hatch
+
+Do NOT use `useEffect` as the default mechanism for coordinating React state.
+
+Before adding a `useEffect`, determine whether the problem can instead be solved with:
+
+1. Derived values during render
+2. An event handler
+3. TanStack Form subscriptions/listeners
+4. TanStack Query state
+5. Server Component data fetching
+6. Component composition
+7. A `key` to reset component state
+8. `useMemo` for expensive derived computation
+9. A dedicated external-store/subscription API
+
+`useEffect` should primarily be used to synchronize React with an external system.
+
+Examples of legitimate external systems include:
+
+- browser APIs
+- DOM APIs not managed by React
+- WebSockets
+- timers
+- event listeners
+- third-party imperative libraries
+- external subscriptions
+
+### Forbidden useEffect patterns
+
+Do NOT use an Effect to derive state from other state.
+
+Bad:
+
+const [fullName, setFullName] = useState('')
+
+useEffect(() => {
+  setFullName(`${firstName} ${lastName}`)
+}, [firstName, lastName])
+
+Good:
+
+const fullName = `${firstName} ${lastName}`
+
+Do NOT use an Effect to respond to a user event when the logic can run
+inside the event handler.
+
+Bad:
+
+useEffect(() => {
+  if (submitted) {
+    saveForm()
+  }
+}, [submitted])
+
+Good:
+
+const handleSubmit = () => {
+  saveForm()
+}
+
+Do NOT create chains of Effects where one Effect changes state that causes
+another Effect to run.
+
+Do NOT use Effects merely to keep two pieces of React state synchronized.
+
+Prefer one source of truth.
+
+Do NOT silence `react-hooks/exhaustive-deps` simply to make an Effect behave.
+
+If the dependency array appears difficult to satisfy, reconsider whether the
+Effect should exist.
+
+### Before adding useEffect
+
+Any newly introduced `useEffect` should have a clear answer to:
+
+"What external system is this component synchronizing with?"
+
+If there is no external system, strongly prefer a solution without an Effect.
+
+---
+
+# TanStack Form
+
+TanStack Form must be treated as the source of truth for form state.
+
+Do NOT mirror TanStack Form values into React `useState`.
+
+Bad:
+
+const [country, setCountry] = useState('')
+
+useEffect(() => {
+  setCountry(form.state.values.country)
+}, [form.state.values.country])
+
+Instead, subscribe directly to the form state.
+
+Use `useSelector` when form state is required by component logic:
+
+const country = useSelector(
+  form.store,
+  (state) => state.values.country,
+)
+
+Use `form.Subscribe` when form state is primarily needed for rendering:
+
+<form.Subscribe
+  selector={(state) => [state.canSubmit, state.isSubmitting]}
+>
+  {([canSubmit, isSubmitting]) => (
+    <button disabled={!canSubmit}>
+      {isSubmitting ? 'Saving...' : 'Save'}
+    </button>
+  )}
+</form.Subscribe>
+
+Always provide a selector when subscribing to form state.
+
+Avoid subscribing to the entire form store unless absolutely necessary.
+
+---
+
+## TanStack Form field dependencies
+
+Do NOT use `useEffect` to implement relationships between form fields.
+
+Example:
+
+When changing `country` should reset `province`, use TanStack Form's
+listener APIs rather than observing `country` with `useEffect`.
+
+Prefer form/field listeners for side effects caused by:
+
+- onChange
+- onBlur
+- onMount
+- onSubmit
+- onUnmount
+
+Form behavior should live within the TanStack Form model whenever practical.
+
+Do NOT build a second React state-management layer around TanStack Form.
+
+---
+
+## TanStack Form validation
+
+Validation should be expressed through TanStack Form validators and the
+project's schema-validation layer.
+
+Do NOT manually synchronize validation errors into React state.
+
+Do NOT write Effects that watch values solely to perform validation.
+
+Prefer declarative validation associated with the form or field.
+
+Use form state such as:
+
+- canSubmit
+- isSubmitting
+- isPristine
+- errorMap
+
+through targeted subscriptions rather than copying these values into
+component state.
+
+---
+
+# State
+
+Minimize state.
+
+Before introducing `useState`, determine whether the value can be:
+
+- calculated during render
+- obtained from props
+- obtained from TanStack Form
+- obtained from TanStack Query
+- obtained from URL/search parameters
+- fetched by a Server Component
+
+Do not store derived data in state.
+
+Bad:
+
+const [filteredUsers, setFilteredUsers] = useState([])
+
+useEffect(() => {
+  setFilteredUsers(users.filter(...))
+}, [users])
+
+Good:
+
+const filteredUsers = users.filter(...)
+
+Use `useMemo` only when the calculation is meaningfully expensive or
+referential stability is actually required.
+
+Do not add `useMemo` or `useCallback` automatically.
+
+---
+
+# Next.js Server and Client Components
+
+Assume components are Server Components unless client-side behavior is
+required.
+
+Do NOT add `"use client"` automatically.
+
+A Client Component is appropriate when the component requires things such as:
+
+- React state
+- event handlers
+- browser APIs
+- lifecycle/effect behavior
+- client-only hooks
+
+Keep `"use client"` boundaries as low in the component tree as practical.
+
+Do not convert an entire page or layout to a Client Component merely because
+one nested control is interactive.
+
+Extract the interactive portion into a Client Component instead.
+
+---
+
+# Data Fetching
+
+Prefer fetching initial page data in Server Components.
+
+Do NOT fetch initial server-accessible data with:
+
+useEffect(() => {
+  fetch(...)
+}, [])
+
+when it can be fetched directly by a Server Component.
+
+For client-side server state, use the project's TanStack Query patterns.
+
+Do NOT reproduce TanStack Query behavior manually using:
+
+- `useEffect`
+- `useState`
+- custom loading flags
+- custom request caching
+
+Do not duplicate the same remote data into additional React state unless
+there is a specific architectural reason.
+
+---
+
+# Next.js Architecture
+
+Prefer:
+
+Server Component
+    ↓ props
+small Client Component
+    ↓
+interactive UI
+
+over:
+
+large `"use client"` page
+    ↓
+useEffect fetching
+    ↓
+large amounts of local state
+
+Props passed across the Server Component / Client Component boundary must be
+serializable.
+
+Do not pass server-only resources or functions into Client Components unless
+using an explicitly supported Server Function pattern.
+
+---
+
+# Event-driven logic
+
+Logic caused directly by a user's action should generally execute in the
+event handler responsible for that action.
+
+Prefer:
+
+onClick={handleAction}
+
+onChange={handleChange}
+
+onSubmit={handleSubmit}
+
+over:
+
+setSomeTrigger(true)
+
+followed by:
+
+useEffect(() => {
+  if (someTrigger) {
+    performAction()
+  }
+}, [someTrigger])
+
+---
+
+# Component Design
+
+Keep components focused.
+
+Extract components when doing so creates a meaningful abstraction or isolates
+client-side behavior.
+
+Do not split components merely to reduce line count.
+
+Prefer explicit data flow over hidden synchronization.
+
+Avoid duplicated sources of truth.
+
+Avoid state synchronization between parent and child components when the
+value can simply be passed as a prop.
+
+---
+
+# React 19
+
+Use current React APIs and patterns.
+
+Do not introduce legacy patterns simply because they are common in older
+examples.
+
+Avoid:
+
+- class components for new code
+- lifecycle methods
+- unnecessary Effects
+- unnecessary refs
+- state synchronization Effects
+- imperative component APIs when declarative composition works
+
+Prefer React's declarative data flow.
+
+---
+
+# Refs
+
+Do not use refs as an alternative state-management system.
+
+Refs are appropriate for values that:
+
+- do not affect rendering
+- need to survive renders
+- reference DOM elements
+- support imperative interaction with external APIs
+
+If changing the value should update the UI, it probably belongs in state or
+another reactive store rather than a ref.
+
+---
+
+# Code Generation Requirements
+
+When generating or modifying React code:
+
+1. Inspect existing project patterns first.
+2. Preserve the project's established architecture.
+3. Do not introduce a `useEffect` without determining why it is necessary.
+4. Do not introduce duplicate React state for TanStack Form or TanStack Query
+   values.
+5. Prefer derived values over synchronized state.
+6. Prefer event handlers over Effects for user-triggered behavior.
+7. Prefer TanStack Form listeners/subscriptions for form reactivity.
+8. Prefer Server Components for server-accessible data.
+9. Keep Client Component boundaries narrow.
+10. Do not disable React hook lint rules to force an implementation to work.
+
+When an Effect is genuinely required, keep it narrowly scoped to the external
+system being synchronized and implement correct cleanup when necessary.
