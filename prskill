@@ -1,0 +1,40 @@
+---
+name: pr
+description: Prepare the current branch for a pull request.
+---
+
+# PR Preparation
+
+When invoked, prepare the current branch for a pull request.
+
+## Process
+
+1. Determine the target/base branch.
+2. Review the complete diff against the base branch.
+3. Perform a thorough code review.
+4. Fix legitimate issues discovered during review.
+5. Determine which unit tests are relevant.
+6. Add missing unit tests where valuable.
+7. Determine whether integration tests are required.
+8. Add missing integration tests where appropriate.
+9. Run relevant tests.
+10. Run linting, type checking, and other applicable validation.
+11. Fix failures introduced by this branch.
+12. Merge the parent branch into the current working branch. (Found from step 1)
+13. Review the final diff again.
+14. Push the branch.
+15. Create a pull request.
+16. Do another code review, and push high level comments, so the user can see potential problems / upgrades.
+
+## PR description
+
+Include:
+
+- Summary
+- Major implementation decisions
+- Tests added/changed
+- Validation performed
+- Known limitations or follow-up work
+
+Do not create the PR until review and validation are complete.
+Do not add low-value tests solely to increase coverage.
